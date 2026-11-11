@@ -53,7 +53,8 @@ cmake --build build -j
 # Windows (Visual Studio 2022) - FFMPEG_ROOT is an FFmpeg "shared" build with include/ lib/ bin/
 cmake -S vj-plugin -B build -G "Visual Studio 17 2022" -A x64 -DFFMPEG_ROOT=C:/ffmpeg
 cmake --build build --config Release
-# then copy C:/ffmpeg/bin/*.dll into "MoshDeck VJ.vst3/Contents/x86_64-win/" (the plugin delay-loads them from there)
+# then copy C:/ffmpeg/bin/*.dll into "MoshDeck VJ.vst3/Contents/x86_64-win/" (and next to the Standalone .exe).
+# The plugin loads FFmpeg from its own folder at runtime; without the DLLs it still loads, with video disabled.
 ```
 
 The GitHub Actions workflow (`.github/workflows/moshdeck-vj.yml`) builds Windows (with FFmpeg bundled), macOS and Linux, and uploads the `.vst3` files as build artifacts.
