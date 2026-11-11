@@ -55,7 +55,7 @@ jobs:
           $root = (Get-ChildItem ffmpeg -Directory | Select-Object -First 1).FullName
           "FFMPEG_ROOT=$root" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Configure
-        run: cmake -S vj-plugin -B build -G "Visual Studio 17 2022" -A x64 -DFFMPEG_ROOT="${{ env.FFMPEG_ROOT }}" -DMOSHDECK_BUILD_RENDER_TEST=OFF -DMOSHDECK_BUILD_HOST_TEST=OFF
+        run: cmake -S vj-plugin -B build -A x64 -DFFMPEG_ROOT="${{ env.FFMPEG_ROOT }}" -DMOSHDECK_BUILD_RENDER_TEST=OFF -DMOSHDECK_BUILD_HOST_TEST=OFF
       - name: Build
         run: cmake --build build --config Release --parallel
       - name: Unit tests
