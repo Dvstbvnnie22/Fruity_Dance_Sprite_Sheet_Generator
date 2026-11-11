@@ -1,10 +1,10 @@
 # Dubstep Machine rig
 
-An all-in-one audio/visual dubstep setup in one FL Studio **Patcher**: Slicex, FPC, Vital, Surge XT, Flex and **MoshDeck VJ**, cross-linked into a web, with every control on a **Traktor Kontrol S2 MK3** and an **M-VAVE SMC-PAD**.
+An all-in-one audio/visual dubstep setup in one FL Studio **Patcher**: Slicex, FPC, Vital, **Odin 2**, Surge XT, Flex and **MoshDeck VJ**, cross-linked into a web, with every control on a **Traktor Kontrol S2 MK3** and an **M-VAVE SMC-PAD**.
 
 | File | What it is |
 |---|---|
-| [PATCHER_BUILD_GUIDE.md](PATCHER_BUILD_GUIDE.md) | step-by-step build of the Patcher: modules, note zones, audio cables, Peak/Formula controller links, saving it as your preset |
+| [PATCHER_BUILD_GUIDE.md](PATCHER_BUILD_GUIDE.md) | step-by-step build of the Patcher: modules, note zones, the Vital + Odin 2 bass bus, audio cables, Peak/Formula controller links, saving it as your preset |
 | [CONTROLLER_MAP.md](CONTROLLER_MAP.md) | every S2 MK3 and SMC-PAD control → Control Surface element → sound targets + visual targets, plus the MoshDeck macro reference |
 | `dubstep-machine.mdvj` | ready-to-load MoshDeck VJ scene (MoshDeck → **Load Scene**) with all 16 macros pre-wired |
 
