@@ -17,6 +17,7 @@ The web is held together by these stock FL helpers:
 - **Fruity Peak Controller** ×2
 - **Fruity Formula Controller** ×2
 - **Fruity Balance** (the "bass bus")
+- **Fruity Parametric EQ 2** (the low cut that keeps Odin 2 out of the sub)
 - **VFX Keyboard Splitter**
 
 Build it once (about 30–40 minutes), then save it as a Patcher preset (step 9). After that you only load loops/samples and pick a sound preset in each plugin.
@@ -28,22 +29,29 @@ Build it once (about 30–40 minutes), then save it as a Patcher preset (step 9)
 ## The web at a glance
 
 ```
-                     ┌───────────────── VFX Keyboard Splitter ─────────────────┐
-   From FL (MIDI) ──►│ <36 Vital + Odin 2 │ 36-51 FPC │ 52-59 Flex │ 60-83 Slicex │ 84+ Surge XT │
-                     └──┬─────────┬────────┬──────────┬───────────┬────────────┬──────────────┘
-                        ▼         ▼        ▼          ▼           ▼            ▼
-                      Vital    Odin 2     FPC        Flex       Slicex      Surge XT
-          audio:        └────┬────┘        │          │           │            │
-                             ▼             ├──► Peak DRUMS ──┬──► XFADE BASS (b) ─► BASS BUS volume
-                      BASS BUS (Fruity     │                 ├──► XFADE LEAD (b) ─► Surge XT volume
-                      Balance) ──► Peak BASS ─► MoshDeck M3  └──► MoshDeck Macro 1 (flash / RGB split)
-                             ▼             ▼          ▼           ▼            ▼
-                             └──────────── all audio summed into MoshDeck VJ ──┘
-                                                      ▼
-                                          MoshDeck VJ ──► To FL (audio passes through)
-                                                      ▲
-   S2 MK3 + SMC-PAD ─► Control Surface ───────────────┴──► Vital / Odin 2 / Surge / Flex controls, Slicex,
-                       (one control → several targets)       FPC, levels, kill switches, MoshDeck macros
+   From FL (MIDI) ──► VFX Keyboard Splitter
+                        │ <36            │ 36-51   │ 52-59   │ 60-83    │ 84+
+                        ├──► Vital       ▼         ▼         ▼          ▼
+                        └──► Odin 2     FPC       Flex     Slicex    Surge XT
+                               │         │         │         │          │
+  audio:  Vital ─────────┐     ▼         │         │         │          │
+                         │  ODIN LOW CUT │         │         │          │
+                         │  (EQ, 120 Hz) │         │         │          │
+                         ▼     │         │         │         │          │
+               BASS BUS (Fruity Balance) │         │         │          │
+                  │         │            │         │         │          │
+                  │         └─► Peak BASS ──► MoshDeck Macro 3 (footage into Milk)
+                  │                      │
+                  │                      ├─► Peak DRUMS ─┬─► XFADE BASS (b) ─► BASS BUS volume
+                  │                      │               ├─► XFADE LEAD (b) ─► Surge XT volume
+                  │                      │               └─► MoshDeck Macro 1 (flash / RGB split)
+                  ▼                      ▼         ▼         ▼          ▼
+                  └──────────── all audio summed into MoshDeck VJ ──────┘
+                                              ▼
+                                 MoshDeck VJ ──► To FL (audio passes through)
+                                              ▲
+   S2 MK3 + SMC-PAD ─► Control Surface ───────┴──► Vital / Odin 2 / Surge / Flex controls, Slicex,
+                       (one control → several targets)   FPC, levels, kill switches, MoshDeck macros
 ```
 
 Every hardware control lands on **one Control Surface element**. That element is cabled to an audio parameter **and** a MoshDeck macro, so each move changes the sound and the picture together. Several controls also drive **both** bass synths at once.
@@ -74,10 +82,11 @@ Add these, roughly left to right:
 1. **VFX Keyboard Splitter** (if you don't have it, see the *No splitter* note in step 3)
 2. **Vital**, **Odin 2**, **FPC**, **Flex**, **Slicex**, **Surge XT**
 3. **Fruity Balance**: rename it **BASS BUS** (right-click module → Rename)
-4. **Fruity Peak Controller** ×2: rename them **DRUMS** and **BASS**
-5. **Fruity Formula Controller** ×2: rename them **XFADE BASS** and **XFADE LEAD**
-6. **MoshDeck VJ**
-7. **Control Surface**
+4. **Fruity Parametric EQ 2**: rename it **ODIN LOW CUT**
+5. **Fruity Peak Controller** ×2: rename them **DRUMS** and **BASS**
+6. **Fruity Formula Controller** ×2: rename them **XFADE BASS** and **XFADE LEAD**
+7. **MoshDeck VJ**
+8. **Control Surface**
 
 ## 3. Notes: split the keyboard so each plugin has its own zone
 
@@ -95,12 +104,12 @@ Cable **From FL (MIDI out) → VFX Keyboard Splitter**. Set up 5 zones and cable
 
 - **FPC:** set the 16 pads to notes 36–51 (select a pad and set its note in the pad properties).
 - **Slicex:** set its root/first-slice note so slice 1 = note 60 (this is Slicex's default).
-- **Vital + Odin 2 stack:** for a clean low end, let **Vital** carry the sub. On **Odin 2**, roll off the lows with its filter or a high-pass, so the reese sits above the sub. If both presets are full-range, the two synths will fight in the low end.
+- **Vital + Odin 2 stack:** **Vital** carries the sub. **Odin 2** plays one octave up and goes through the ODIN LOW CUT EQ, so its reese sits above the sub instead of fighting it. Section 5b sets this up step by step.
 - **No splitter?** Cable From FL to all six instruments. Then use separate MIDI channels instead: give the SMC-PAD banks different channels in the M-VAVE app, and put piano-roll notes for the bass and Surge in their own patterns. Expect some overlap.
 
 ## 4. Audio cables
 
-1. **Vital + Odin 2 (audio out) → BASS BUS (audio in).** Both go into the same input and are summed.
+1. **Vital (audio out) → BASS BUS (audio in).** **Odin 2 (audio out) → ODIN LOW CUT (audio in)**, then **ODIN LOW CUT (audio out) → BASS BUS (audio in)**. Both synths land in the same BASS BUS input and are summed.
 2. **BASS BUS, FPC, Flex, Slicex, Surge XT (audio out) → MoshDeck VJ (audio in).**
 3. **MoshDeck VJ (audio out) → To FL.** MoshDeck passes audio through untouched, so this is your master mix.
 4. **FPC (audio out) → Peak Controller DRUMS (audio in)**: a second cable from the same output.
@@ -129,11 +138,86 @@ Expose these parameters:
 
 **Choose presets whose macros do something dubstep-y.** In Vital and Surge, the factory/community dubstep presets usually put growl, wobble rate, filter and FM/distortion on the macros. If a preset leaves a macro empty, drag the macro onto any knob inside the synth. The rig doesn't care what a macro does, only that it's assigned.
 
-**Odin 2 has no macro knobs; its XY pad plays that role.** In Odin 2's modulation matrix, route **XY X** and **XY Y** to whatever should move. For a reese/neuro bass, good targets are:
-- **XY X →** filter 1 frequency and/or oscillator FM / detune amount (the "snarl")
-- **XY Y →** LFO 1 frequency (the wobble rate) and/or filter resonance
+**Odin 2 has no macro knobs; its XY pad plays that role.** Set it up in section 5b before you cable it.
 
-Save the result as your own Odin 2 preset, so the routing is there every time you load it.
+## 5b. Odin 2: setting up the reese layer, step by step
+
+Odin 2 provides the moving, beating mid-bass (the "reese"). Vital underneath provides the sub and the growl. Everything below is done once, then saved as your own Odin 2 preset, so you never repeat it.
+
+> **Odin 2 labels vary slightly between versions.** Each step says *what* to set. If a label differs, use the nearest control with the same job.
+
+### A. Get a starting sound
+
+1. Double-click the **Odin 2** box in the Patcher to open it.
+2. Pick one of these two routes:
+   - **Quick:** open Odin 2's preset browser and load a bass preset with "reese", "neuro" or "bass" in its name. Skip to **step 11**; steps 11–17 still apply.
+   - **From scratch:** load Odin 2's default (init) patch, then follow steps 3–17.
+
+### B. Oscillators: the reese itself
+
+3. **Voice mode:** set Odin 2 to **Mono** or **Legato** (in its global/voice settings), so a held bass note never stacks voices. Optionally add **Glide/Portamento** of about 20–40 ms for slides between notes.
+4. **Oscillator 1:** type **Analog**, waveform **Saw**. Set **Oct +1**. Vital already covers the lowest octave, so Odin 2 plays one octave higher.
+5. **Oscillator 2:** type **Analog**, waveform **Saw**, **Oct +1**, and **Fine +12 to +20 cents**. The two saws drifting against each other create the reese "beating". More cents = faster beating.
+   - *Alternative:* use one **Multi** oscillator (several detuned voices in one) on oscillator 1 with its detune around 30–50 %, and turn oscillator 2 off.
+6. **Oscillator 3:** off, or its volume at zero. A third oscillator here would only add more low end.
+
+### C. Filter: the tone that moves
+
+7. **Filter 1:** type **LP24** (24 dB low-pass). Frequency about **600 Hz**, resonance about **20 %**.
+8. **Filter routing:** send **oscillators 1 and 2 into Filter 1** (the small source buttons on the filter). Make sure they are **not** also going into Filter 2, otherwise you get the sound twice. Leave Filter 2 off.
+
+### D. Snarl and shape
+
+9. **Distortion:** turn on Odin 2's distortion module. Choose a fold or saturation type, **Boost** about 30–50 % and **Dry/Wet** about 60 %. This adds the gritty neuro edge.
+10. **Amp envelope:** Attack **0**, Decay maximum, Sustain **100 %**, Release about **50–100 ms**. The bass holds as long as the note does and stops cleanly.
+
+### E. Wobble and XY pad (what the S2 controls)
+
+11. **LFO 1 (the wobble):** waveform **sine** or **triangle**, **Sync on**, rate **1/8**. You change the rate live with the XY pad in step 14.
+12. **Modulation matrix, slot 1:** source **LFO 1** → destination **Filter 1 Frequency**, amount about **+40 %**. Filter 1 now wobbles in time with FL.
+13. **Modulation matrix, slot 2:** source **XY pad X** → destination **Filter 1 Frequency**, amount about **+50 %**. This is the **BASS FILTER** knob (S2 Filter A).
+14. **Modulation matrix, slot 3:** source **XY pad Y** → destination **LFO 1 Frequency/Rate**, amount about **+60 %**. This is the **WOBBLE** knob (S2 EQ Mid A); more = faster wobble.
+15. *(Optional)* **Modulation matrix, slot 4:** source **XY pad X** → destination **Distortion Boost**, amount about **+30 %**. Opening the filter then also adds snarl.
+
+### F. Keep it tight
+
+16. **Effects:** turn **off** reverb, delay and chorus. They smear and widen the low end, and the bass should stay tight and centred.
+17. **Master volume:** start around **−6 dB**. You balance it against Vital later with the SMC-PAD **ODIN LVL** knob (knob 7).
+
+### G. Save it
+
+18. Save the patch, with either method:
+    - Odin 2's own preset **Save** button, or
+    - FL's plugin wrapper menu (the small arrow at Odin 2's top-left) → **Save preset as…**
+
+    Name it something like `Reese - Dubstep Machine`. Your routing (steps 11–15) is stored in the preset.
+
+### H. The low cut (in the Patcher)
+
+19. Double-click **ODIN LOW CUT** (Fruity Parametric EQ 2) to open it.
+20. Use **band 1** as a **low cut / high-pass**: set its shape to the low-cut type, frequency **120 Hz** (anywhere 100–150 Hz), and the steepest slope offered.
+21. Leave all other bands flat. Odin 2 now has no sub; Vital alone carries everything below about 120 Hz.
+
+### I. Cable Odin 2 into the web
+
+22. Right-click the **Odin 2** box and expose these four parameters (see step 5): **XY pad X**, **XY pad Y**, **Filter 1 Frequency**, **Master volume**. If the XY pad doesn't appear in the list, drag the XY pad inside Odin 2 once, then look again.
+23. Cable them from the Control Surface (see [CONTROLLER_MAP.md](CONTROLLER_MAP.md)):
+
+    | Control Surface element | → Odin 2 parameter |
+    |---|---|
+    | **BASS FILTER** (S2 Filter A) | XY pad X (also still cabled to Vital Macro 2 and MoshDeck Macro 2) |
+    | **WOBBLE** (S2 EQ Mid A) | XY pad Y (also still cabled to Vital Macro 4) |
+    | **ODIN LVL** (SMC-PAD knob 7) | Master volume |
+    | **ODIN FILTER** (SMC-PAD knob 8) | Filter 1 Frequency |
+
+### J. Check the stack
+
+24. In the piano roll, hold one bass note: MIDI **29**, which FL calls F2.
+25. **Odin 2 alone** (mute Vital): buzzy and beating, without much deep boom.
+26. **Vital alone** (mute Odin 2): the deep sub and growl.
+27. **Both together:** the low end should sound as deep as Vital alone, with the movement added on top. Bypass ODIN LOW CUT for a moment: the low end now gets boomy or hollow, which shows why the cut is there.
+28. Turn **S2 Filter A**: both synths' filters sweep. Turn **S2 EQ Mid A**: Odin 2's wobble speeds up and slows down.
+29. **Mono check:** briefly set FL's master to mono (the master mixer track's stereo separation knob fully to mono). The reese should not disappear or thin out much. If it does, reduce Odin 2's stereo spread/unison width, or make sure chorus is off.
 
 ## 6. Load the visuals
 
@@ -193,8 +277,8 @@ Patcher's menu → **Save preset as…** → `Dubstep Machine.fst`. Saving throu
 ## Troubleshooting
 
 - **A Vital/Surge macro does nothing:** the preset hasn't assigned it (step 5).
-- **Odin 2's XY does nothing:** route XY X/Y in Odin's modulation matrix (step 5) and save it into your preset.
-- **The bass is muddy:** high-pass Odin 2 so Vital alone carries the sub (step 3).
+- **Odin 2's XY does nothing:** route XY X/Y in Odin's modulation matrix (section 5b, steps 13–14) and save it into your preset.
+- **The bass is muddy or boomy:** check ODIN LOW CUT is in the cable path and not bypassed (section 5b, steps 19–21), and that Odin 2's oscillators are at Oct +1.
 - **No bass at all:** KILL BASS is OFF, or the crossfader is fully right (lead side).
 - **Visuals don't react to a control:** check the cable goes into the right *MoshDeck Macro N*. Inside MoshDeck, the Modulation Matrix tab lists every Macro → target route; increase its Amount there if the effect is too subtle.
 - **Notes trigger the wrong plugin:** recheck the splitter zones and the SMC-PAD bank note numbers (CONTROLLER_MAP.md).

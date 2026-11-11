@@ -6,7 +6,7 @@ Because the links are made with *Link to controller* (FL listens and learns), yo
 
 Columns: **CS element** = what to create on the Control Surface · **Sound** = Patcher cables to audio plugins · **Visual** = cable to the MoshDeck VJ input.
 
-The **bass** is two synths: **Vital** (sub + growl) and **Odin 2** (reese / neuro mid-bass). The rows marked **both** move them together. On Odin 2, *XY X / XY Y* are its XY pad; route them in Odin's modulation matrix (build guide, step 5).
+The **bass** is two synths: **Vital** (sub + growl) and **Odin 2** (reese / neuro mid-bass). The rows marked **both** move them together. On Odin 2, *XY X / XY Y* are its XY pad; set them up with the build guide's section 5b (step-by-step Odin 2 setup).
 
 ## Traktor Kontrol S2 MK3
 
