@@ -118,3 +118,7 @@ See `bundle.js.LICENSE.txt`.
 ## Issues
 
 Please create a new issue if you find a bug. Thanks.
+
+## MoshDeck VJ (FL Studio VJ plugin)
+
+The [`vj-plugin/`](vj-plugin/README.md) folder contains **MoshDeck VJ**, an audio-synchronised VST3 VJ plugin for FL Studio (Shadertoy import, datamosh effects, two media decks, a MilkDrop-format preset engine, audio visualizers, MIDI learn/out and FL tempo sync). See its README for features, build and setup.

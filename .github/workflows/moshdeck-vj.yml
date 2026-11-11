@@ -1,0 +1,85 @@
+name: MoshDeck VJ plugin
+
+on:
+  push:
+    paths: [ "vj-plugin/**", ".github/workflows/moshdeck-vj.yml" ]
+  pull_request:
+    paths: [ "vj-plugin/**", ".github/workflows/moshdeck-vj.yml" ]
+  workflow_dispatch:
+
+jobs:
+  linux-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev libasound2-dev libx11-dev libxrandr-dev libxinerama-dev \
+            libxcursor-dev libxcomposite-dev libxext-dev libfreetype-dev libavcodec-dev libavformat-dev \
+            libswscale-dev libavutil-dev glslang-tools xvfb
+      - name: Configure
+        run: cmake -S vj-plugin -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build -j4
+      - name: Unit tests + GLSL validation
+        run: |
+          ./build/MoshDeckTests_artefacts/Release/MoshDeckTests shaders
+          for f in shaders/*.frag; do glslangValidator -S frag "$f" > /dev/null || { echo "invalid: $f"; exit 1; }; done
+      - name: GPU render + VST3 host tests (Mesa, Xvfb)
+        run: |
+          xvfb-run -a -s "-screen 0 1600x1000x24" ./build/MoshDeckRenderTest_artefacts/Release/MoshDeckRenderTest "$PWD/render" "$PWD/logotype.png"
+          xvfb-run -a -s "-screen 0 1600x1000x24" ./build/MoshDeckHostTest_artefacts/Release/MoshDeckHostTest "$PWD/build/MoshDeckVJ_artefacts/Release/VST3/MoshDeck VJ.vst3"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: render-contact-sheets
+          path: render/sheet_*.png
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download FFmpeg (LGPL shared build)
+        shell: pwsh
+        run: |
+          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-win64-lgpl-shared-7.1.zip"
+          Invoke-WebRequest $url -OutFile ffmpeg.zip
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg
+          $root = (Get-ChildItem ffmpeg -Directory | Select-Object -First 1).FullName
+          "FFMPEG_ROOT=$root" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Configure
+        run: cmake -S vj-plugin -B build -G "Visual Studio 17 2022" -A x64 -DFFMPEG_ROOT="${{ env.FFMPEG_ROOT }}" -DMOSHDECK_BUILD_RENDER_TEST=OFF -DMOSHDECK_BUILD_HOST_TEST=OFF
+      - name: Build
+        run: cmake --build build --config Release --parallel
+      - name: Unit tests
+        run: ./build/MoshDeckTests_artefacts/Release/MoshDeckTests.exe
+      - name: Bundle FFmpeg DLLs into the VST3 + Standalone
+        shell: pwsh
+        run: |
+          $vst = "build/MoshDeckVJ_artefacts/Release/VST3/MoshDeck VJ.vst3/Contents/x86_64-win"
+          Copy-Item "$env:FFMPEG_ROOT/bin/*.dll" $vst
+          Copy-Item "$env:FFMPEG_ROOT/bin/*.dll" "build/MoshDeckVJ_artefacts/Release/Standalone"
+          Copy-Item "$env:FFMPEG_ROOT/LICENSE.txt" "$vst/FFMPEG-LICENSE.txt" -ErrorAction SilentlyContinue
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MoshDeckVJ-Windows-VST3
+          path: build/MoshDeckVJ_artefacts/Release/VST3
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MoshDeckVJ-Windows-Standalone
+          path: build/MoshDeckVJ_artefacts/Release/Standalone
+
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure (universal, still images only - see README for video on macOS)
+        run: cmake -S vj-plugin -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DMOSHDECK_USE_FFMPEG=OFF -DMOSHDECK_BUILD_RENDER_TEST=OFF -DMOSHDECK_BUILD_HOST_TEST=OFF
+      - name: Build
+        run: cmake --build build --config Release --parallel -- -quiet
+      - name: Unit tests
+        run: ./build/MoshDeckTests_artefacts/Release/MoshDeckTests
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MoshDeckVJ-macOS-VST3
+          path: build/MoshDeckVJ_artefacts/Release/VST3
