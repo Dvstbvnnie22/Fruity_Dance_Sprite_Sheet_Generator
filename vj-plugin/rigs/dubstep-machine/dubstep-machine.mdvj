@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<MoshDeckPreset>
+  <MoshDeckScene version="1" uidCounter="39">
+    <Layer uid="L3" name="Decks A/B" source="3" input="3" index="0" milk=""
+           milkFolder="" shader="" shaderName="" blend="0" enabled="1" solo="0">
+      <FX uid="fx4" effect="mosh_bloom" enabled="1"/>
+      <FX uid="fx5" effect="mosh_slices" enabled="1"/>
+    </Layer>
+    <Layer uid="L11" name="Milk Feedback" source="5" input="4" index="0"
+           milk="builtin:Bass Tunnel" milkFolder="" shader="" shaderName=""
+           blend="2" enabled="1" solo="0">
+      <FX uid="fx15" effect="kaleido" enabled="1"/>
+      <FX uid="fx18" effect="transform" enabled="1"/>
+    </Layer>
+    <Layer uid="L20" name="Circle Spectrum" source="6" input="2" index="2"
+           milk="" milkFolder="" shader="" shaderName="" blend="20" enabled="1"
+           solo="0"/>
+    <Layer uid="L24" name="Particles" source="6" input="0" index="6" milk=""
+           milkFolder="" shader="" shaderName="" blend="20" enabled="1"
+           solo="0"/>
+    <Master>
+      <FX uid="fx26" effect="hue_shift" enabled="1"/>
+      <FX uid="fx28" effect="beat_flash" enabled="1"/>
+      <FX uid="fx31" effect="rgb_split" enabled="1"/>
+      <FX uid="fx33" effect="strobe" enabled="1"/>
+      <FX uid="fx35" effect="invert" enabled="1"/>
+    </Master>
+    <Route uid="m7" source="12" index="10" param="" dest="L3.fx4.mix" smooth="0.0"
+           bipolar="0"/>
+    <Route uid="m8" source="12" index="6" param="" dest="L3.fx4.p0" smooth="0.6000000238418579"
+           bipolar="0"/>
+    <Route uid="m9" source="12" index="15" param="" dest="L3.fx5.mix" smooth="0.0"
+           bipolar="0"/>
+    <Route uid="m10" source="2" index="0" param="" dest="L3.fx5.p0" smooth="0.0"
+           bipolar="0"/>
+    <Route uid="m12" source="12" index="1" param="" dest="L11.p4" smooth="0.300000011920929"
+           bipolar="0"/>
+    <Route uid="m13" source="12" index="2" param="" dest="L11.p0" smooth="0.2000000029802322"
+           bipolar="0"/>
+    <Route uid="m14" source="12" index="5" param="" dest="L11.p2" smooth="0.300000011920929"
+           bipolar="1"/>
+    <Route uid="m16" source="12" index="13" param="" dest="L11.fx15.mix"
+           smooth="0.0" bipolar="0"/>
+    <Route uid="m17" source="12" index="13" param="" dest="L11.fx15.p0"
+           smooth="0.0" bipolar="0"/>
+    <Route uid="m19" source="12" index="7" param="" dest="L11.fx18.p1" smooth="0.6000000238418579"
+           bipolar="1"/>
+    <Route uid="m21" source="12" index="9" param="" dest="L20.opacity" smooth="0.0"
+           bipolar="0"/>
+    <Route uid="m22" source="12" index="3" param="" dest="L20.p4" smooth="0.300000011920929"
+           bipolar="0"/>
+    <Route uid="m23" source="12" index="3" param="" dest="L20.p3" smooth="0.0"
+           bipolar="0"/>
+    <Route uid="m25" source="0" index="1" param="" dest="L24.p3" smooth="0.5"
+           bipolar="0"/>
+    <Route uid="m27" source="12" index="14" param="" dest="master.fx26.p0"
+           smooth="0.4000000059604645" bipolar="0"/>
+    <Route uid="m29" source="12" index="0" param="" dest="master.fx28.mix"
+           smooth="0.0" bipolar="0"/>
+    <Route uid="m30" source="12" index="12" param="" dest="master.fx28.mix"
+           smooth="0.0" bipolar="0"/>
+    <Route uid="m32" source="12" index="0" param="" dest="master.fx31.p0"
+           smooth="0.0" bipolar="0"/>
+    <Route uid="m34" source="12" index="11" param="" dest="master.fx33.mix"
+           smooth="0.0" bipolar="0"/>
+    <Route uid="m36" source="12" index="10" param="" dest="master.fx35.mix"
+           smooth="0.0" bipolar="0"/>
+    <Route uid="m37" source="12" index="4" param="" dest="DA.speed" smooth="0.300000011920929"
+           bipolar="1"/>
+    <Route uid="m38" source="12" index="8" param="" dest="L3.opacity" smooth="0.0"
+           bipolar="0"/>
+    <Deck index="0" current="0"/>
+    <Deck index="1" current="0"/>
+    <Values>
+      <P id="G.xfade" v="0.0"/>
+      <P id="G.master" v="1.0"/>
+      <P id="G.lfo1.div" v="1.0"/>
+      <P id="G.lfo1.shape" v="0.0"/>
+      <P id="G.lfo2.div" v="2.0"/>
+      <P id="G.lfo2.shape" v="0.0"/>
+      <P id="G.lfo3.div" v="4.0"/>
+      <P id="G.lfo3.shape" v="0.0"/>
+      <P id="G.lfo4.div" v="8.0"/>
+      <P id="G.lfo4.shape" v="0.0"/>
+      <P id="DA.speed" v="1.0"/>
+      <P id="DA.beats" v="8.0"/>
+      <P id="DA.cue" v="0.0"/>
+      <P id="DA.next" v="0.0"/>
+      <P id="DB.speed" v="1.0"/>
+      <P id="DB.beats" v="0.0"/>
+      <P id="DB.cue" v="0.0"/>
+      <P id="DB.next" v="8.0"/>
+      <P id="L3.opacity" v="0.4000000059604645"/>
+      <P id="L3.speed" v="1.0"/>
+      <P id="L3.p0" v="1.0"/>
+      <P id="L3.p1" v="0.0"/>
+      <P id="L3.p2" v="0.0"/>
+      <P id="L3.p3" v="0.0"/>
+      <P id="L3.p4" v="0.25"/>
+      <P id="L3.p5" v="0.0"/>
+      <P id="L3.fx4.mix" v="0.0"/>
+      <P id="L3.fx4.p0" v="1.600000023841858"/>
+      <P id="L3.fx4.p1" v="0.119999997317791"/>
+      <P id="L3.fx4.p2" v="16.0"/>
+      <P id="L3.fx4.p3" v="2.0"/>
+      <P id="L3.fx4.p4" v="0.0"/>
+      <P id="L3.fx5.mix" v="0.0"/>
+      <P id="L3.fx5.p0" v="0.07999999821186066"/>
+      <P id="L3.fx5.p1" v="24.0"/>
+      <P id="L3.fx5.p2" v="2.0"/>
+      <P id="L3.fx5.p3" v="0.5"/>
+      <P id="L3.fx5.p4" v="0.6000000238418579"/>
+      <P id="m7.amt" v="1.0"/>
+      <P id="m8.amt" v="0.5"/>
+      <P id="m9.amt" v="1.0"/>
+      <P id="m10.amt" v="0.1500000059604645"/>
+      <P id="L11.opacity" v="0.8500000238418579"/>
+      <P id="L11.speed" v="1.0"/>
+      <P id="L11.p0" v="0.119999997317791"/>
+      <P id="L11.p1" v="2.0"/>
+      <P id="L11.p2" v="0.0"/>
+      <P id="L11.p3" v="0.0"/>
+      <P id="L11.p4" v="1.0"/>
+      <P id="L11.p5" v="0.0"/>
+      <P id="L11.p6" v="1.0"/>
+      <P id="L11.p7" v="32.0"/>
+      <P id="m12.amt" v="0.3499999940395355"/>
+      <P id="m13.amt" v="0.5"/>
+      <P id="m14.amt" v="0.4000000059604645"/>
+      <P id="L11.fx15.mix" v="0.0"/>
+      <P id="L11.fx15.p0" v="6.0"/>
+      <P id="L11.fx15.p1" v="0.2000000029802322"/>
+      <P id="L11.fx15.p2" v="1.0"/>
+      <P id="L11.fx15.p3" v="0.2000000029802322"/>
+      <P id="m16.amt" v="1.0"/>
+      <P id="m17.amt" v="0.4000000059604645"/>
+      <P id="L11.fx18.mix" v="1.0"/>
+      <P id="L11.fx18.p0" v="1.0"/>
+      <P id="L11.fx18.p1" v="0.0"/>
+      <P id="L11.fx18.p2" v="0.0"/>
+      <P id="L11.fx18.p3" v="0.0"/>
+      <P id="L11.fx18.p4" v="0.0"/>
+      <P id="L11.fx18.p5" v="0.0"/>
+      <P id="m19.amt" v="0.5"/>
+      <P id="L20.opacity" v="0.0"/>
+      <P id="L20.speed" v="1.0"/>
+      <P id="L20.p0" v="1.100000023841858"/>
+      <P id="L20.p1" v="0.0"/>
+      <P id="L20.p2" v="0.0"/>
+      <P id="L20.p3" v="0.5"/>
+      <P id="L20.p4" v="0.550000011920929"/>
+      <P id="L20.p5" v="0.5"/>
+      <P id="L20.p6" v="64.0"/>
+      <P id="L20.p7" v="0.5"/>
+      <P id="m21.amt" v="1.0"/>
+      <P id="m22.amt" v="1.0"/>
+      <P id="m23.amt" v="0.4000000059604645"/>
+      <P id="L24.opacity" v="1.0"/>
+      <P id="L24.speed" v="1.0"/>
+      <P id="L24.p0" v="1.600000023841858"/>
+      <P id="L24.p1" v="0.0"/>
+      <P id="L24.p2" v="0.0"/>
+      <P id="L24.p3" v="0.5"/>
+      <P id="L24.p4" v="0.550000011920929"/>
+      <P id="L24.p5" v="0.5"/>
+      <P id="L24.p6" v="90.0"/>
+      <P id="L24.p7" v="0.5"/>
+      <P id="m25.amt" v="0.300000011920929"/>
+      <P id="master.fx26.mix" v="1.0"/>
+      <P id="master.fx26.p0" v="0.0"/>
+      <P id="master.fx26.p1" v="0.0"/>
+      <P id="m27.amt" v="1.0"/>
+      <P id="master.fx28.mix" v="0.0"/>
+      <P id="master.fx28.p0" v="0.6000000238418579"/>
+      <P id="master.fx28.p1" v="1.0"/>
+      <P id="master.fx28.p2" v="0.0"/>
+      <P id="master.fx28.p3" v="0.0"/>
+      <P id="m29.amt" v="1.0"/>
+      <P id="m30.amt" v="1.0"/>
+      <P id="master.fx31.mix" v="1.0"/>
+      <P id="master.fx31.p0" v="0.002000000094994903"/>
+      <P id="master.fx31.p1" v="0.0"/>
+      <P id="master.fx31.p2" v="0.5"/>
+      <P id="m32.amt" v="0.4000000059604645"/>
+      <P id="master.fx33.mix" v="0.0"/>
+      <P id="master.fx33.p0" v="2.0"/>
+      <P id="master.fx33.p1" v="0.300000011920929"/>
+      <P id="master.fx33.p2" v="0.0"/>
+      <P id="m34.amt" v="1.0"/>
+      <P id="master.fx35.mix" v="0.0"/>
+      <P id="master.fx35.p0" v="1.0"/>
+      <P id="master.fx35.p1" v="1.0"/>
+      <P id="m36.amt" v="1.0"/>
+      <P id="m37.amt" v="0.1500000059604645"/>
+      <P id="m38.amt" v="0.6000000238418579"/>
+    </Values>
+  </MoshDeckScene>
+</MoshDeckPreset>

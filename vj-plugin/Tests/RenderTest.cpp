@@ -17,6 +17,7 @@ struct TestHost : EngineHost
     MediaDeck decks[2];
     AudioAnalyzer analyzer;
     double beats = 0.0;
+    float macros[16] = {};
     std::map<juce::String, juce::String> status;
     Scene& getScene() override { return scene; }
     MediaDeck& getDeck (int i) override { return decks[i]; }
@@ -25,6 +26,7 @@ struct TestHost : EngineHost
         analyzer.read (in.mod.audio);
         in.mod.beats = beats; in.mod.bpm = 120.0; in.mod.beatsPerBar = 4;
         in.mod.beatPulse = (float) std::exp (-(beats - std::floor (beats)) * 6.0);
+        for (int i = 0; i < 16; ++i) in.mod.macros[(size_t) i] = macros[i];
     }
     void getCanvasSize (int& w, int& h) override { w = 480; h = 270; }
     void setLayerStatus (const juce::String& uid, const juce::String& s) override { status[uid] = s; }
@@ -37,7 +39,7 @@ struct Phase { juce::String name, sheet; std::function<void (Scene&)> setup; int
 class TestComponent : public juce::Component, private juce::OpenGLRenderer
 {
 public:
-    TestComponent (const juce::File& outDir, const juce::String& deckImage) : out (outDir), engine (host)
+    TestComponent (const juce::File& outDir, const juce::String& deckImage, const juce::String& rig) : out (outDir), engine (host), rigFile (rig)
     {
         host.analyzer.prepare (44100.0);
         if (deckImage.isNotEmpty()) host.decks[0].load (deckImage);
@@ -58,6 +60,21 @@ public:
 private:
     void buildPhases()
     {
+        if (rigFile.isNotEmpty())
+        {
+            for (int k = 0; k < 3; ++k)
+                phases.push_back ({ "rig:" + juce::String (k == 0 ? "intro" : k == 1 ? "build" : "drop"), "rig", [this, k] (Scene& s)
+                {
+                    if (k == 0)
+                        if (auto xml = juce::XmlDocument::parse (juce::File (rigFile)))
+                            s.fromValueTree (juce::ValueTree::fromXml (*xml).getChildWithName ("MoshDeckScene"));
+                    for (int i = 0; i < 16; ++i) host.macros[i] = k == 0 ? 0.0f : (k == 1 ? 0.5f : 0.8f);
+                    host.macros[10] = k == 2 ? 1.0f : 0.0f;   // Macro 11 = DROP
+                    host.macros[11] = 0.0f;                  // strobe off for the screenshot
+                    host.macros[9] = 1.0f;
+                }, 150 });
+            return;
+        }
         auto clear = [] (Scene& s) { for (auto& l : s.getLayers()) s.removeLayer (l.uid); for (auto& f : s.getEffects ("master")) s.removeEffect ("master", f.uid); };
         for (int i = 0; i < GeneratorLibrary::count(); ++i)
             phases.push_back ({ "gen:" + GeneratorLibrary::get (i)->id, "generators", [=] (Scene& s)
@@ -220,6 +237,7 @@ private:
 
     juce::File out;
     TestHost host;
+    juce::String rigFile;
     juce::OpenGLContext ctx;
     RenderEngine engine;
     std::vector<Phase> phases;
@@ -254,7 +272,7 @@ public:
 
         window = std::make_unique<juce::DocumentWindow> ("render test", juce::Colours::black, 0);
         window->setUsingNativeTitleBar (true);
-        window->setContentOwned (new TestComponent (outDir, args.size() > 1 ? args[1].unquoted() : juce::String()), true);
+        window->setContentOwned (new TestComponent (outDir, args.size() > 1 ? args[1].unquoted() : juce::String(), args.size() > 2 ? args[2].unquoted() : juce::String()), true);
         window->setVisible (true);
     }
     void shutdown() override { window.reset(); }

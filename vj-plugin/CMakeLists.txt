@@ -111,6 +111,13 @@ if(MOSHDECK_BUILD_TESTS)
     target_compile_definitions(MoshDeckTests PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 MOSHDECK_TESTS=1)
     target_link_libraries(MoshDeckTests PRIVATE juce::juce_core juce::juce_audio_basics juce::juce_dsp juce::juce_data_structures juce::juce_events
         PUBLIC juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+    juce_add_console_app(MoshDeckRigBuilder PRODUCT_NAME "MoshDeckRigBuilder")
+    target_sources(MoshDeckRigBuilder PRIVATE Tests/BuildDubstepRig.cpp Source/model/Scene.cpp Source/render/EffectLibrary.cpp Source/render/GeneratorLibrary.cpp)
+    target_include_directories(MoshDeckRigBuilder PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Source)
+    target_compile_definitions(MoshDeckRigBuilder PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+    target_link_libraries(MoshDeckRigBuilder PRIVATE juce::juce_core juce::juce_audio_basics juce::juce_data_structures juce::juce_events
+        PUBLIC juce::juce_recommended_config_flags)
 endif()
 
 # ---------------------------------------------------------------- GPU render smoke test
