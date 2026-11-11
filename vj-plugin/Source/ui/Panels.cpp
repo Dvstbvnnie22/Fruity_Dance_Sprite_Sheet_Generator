@@ -902,7 +902,8 @@ MidiPanel::MidiPanel (MoshDeckProcessor& p) : proc (p)
 
     viewport.setViewedComponent (&content, false);
     addAndMakeVisible (viewport);
-    proc.midiLearn.onMappingsChanged = [this] { juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<MidiPanel> (this)] { if (safe) safe->rebuild(); }); };
+    juce::Component::SafePointer<MidiPanel> safeThis (this);
+    proc.midiLearn.onMappingsChanged = [safeThis] { juce::MessageManager::callAsync ([safeThis] { if (auto* p = safeThis.getComponent()) p->rebuild(); }); };
     rebuild();
     startTimerHz (10);
 }

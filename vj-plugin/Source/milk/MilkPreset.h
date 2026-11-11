@@ -81,7 +81,7 @@ public:
     void runFrame (const FrameInputs& in, const float* wave512, const float* spectrum512);
 
     // per-frame results
-    double get (const char* name) const { return vars.get (name); }
+    double get (const char* varName) const { return vars.get (varName); }
     const std::vector<float>& meshUV() const { return uv; }   // (meshW+1)*(meshH+1)*2, 0..1, y up
     std::array<ShapeOut, 4> shapes;
     std::array<WaveOut, 4> waves;

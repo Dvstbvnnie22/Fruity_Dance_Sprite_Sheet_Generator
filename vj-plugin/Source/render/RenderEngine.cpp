@@ -81,7 +81,7 @@ void RenderEngine::contextCreated()
     geo.create();
     juce::String log;
     if (! milkShaders.create (log))
-        DBG ("Milk shader error: " << log);
+        shaderErrors["milk"] = log;
 
     const float black[4] = { 0, 0, 0, 0 };
     blackTex.uploadRGBA (black, 1, 1);
