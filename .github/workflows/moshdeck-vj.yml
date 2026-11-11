@@ -55,7 +55,7 @@ jobs:
           $root = (Get-ChildItem ffmpeg -Directory | Select-Object -First 1).FullName
           "FFMPEG_ROOT=$root" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Configure
-        run: cmake -S vj-plugin -B build -A x64 -DFFMPEG_ROOT="${{ env.FFMPEG_ROOT }}" -DMOSHDECK_BUILD_RENDER_TEST=OFF -DMOSHDECK_BUILD_HOST_TEST=OFF
+        run: cmake -S vj-plugin -B build -A x64 -DFFMPEG_ROOT="${{ env.FFMPEG_ROOT }}" -DMOSHDECK_BUILD_RENDER_TEST=OFF -DMOSHDECK_BUILD_HOST_TEST=ON
       - name: Build
         run: cmake --build build --config Release --parallel
       - name: Unit tests
@@ -67,6 +67,39 @@ jobs:
           Copy-Item "$env:FFMPEG_ROOT/bin/*.dll" $vst
           Copy-Item "$env:FFMPEG_ROOT/bin/*.dll" "build/MoshDeckVJ_artefacts/Release/Standalone"
           Copy-Item "$env:FFMPEG_ROOT/LICENSE.txt" "$vst/FFMPEG-LICENSE.txt" -ErrorAction SilentlyContinue
+      - name: Check DLL dependencies (static runtime, FFmpeg delay-loaded)
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $dumpbin = (Get-ChildItem "$vs\VC\Tools\MSVC" -Recurse -Filter dumpbin.exe | Where-Object FullName -match 'Hostx64\\x64' | Select-Object -First 1).FullName
+          $vst = "build/MoshDeckVJ_artefacts/Release/VST3/MoshDeck VJ.vst3/Contents/x86_64-win/MoshDeck VJ.vst3"
+          $exe = "build/MoshDeckVJ_artefacts/Release/Standalone/MoshDeck VJ.exe"
+          foreach ($bin in @($vst, $exe)) {
+            Write-Host "=== $bin"
+            $deps = & $dumpbin /nologo /dependents $bin | Out-String
+            Write-Host $deps
+            if ($deps -match '(?i)(vcruntime|msvcp)\d+\.dll') { Write-Error "$bin needs the Visual C++ redistributable"; exit 1 }
+            $normal = ($deps -split 'delay load')[0]
+            if ($normal -match '(?i)\b(avformat|avcodec|avutil|swscale)-\d+\.dll') { Write-Error "$bin hard-links FFmpeg (not delay-loaded)"; exit 1 }
+          }
+      - name: Video decode test (Windows FFmpeg)
+        shell: pwsh
+        run: |
+          $dir = "build/MoshDeckMediaTest_artefacts/Release"
+          Copy-Item "$env:FFMPEG_ROOT/bin/*.dll" $dir
+          & "$env:FFMPEG_ROOT/bin/ffmpeg.exe" -loglevel error -y -f lavfi -i testsrc2=size=1280x720:rate=30 -t 4 -c:v libx264 -pix_fmt yuv420p test.mp4
+          if (-not (Test-Path test.mp4)) { & "$env:FFMPEG_ROOT/bin/ffmpeg.exe" -loglevel error -y -f lavfi -i testsrc2=size=1280x720:rate=30 -t 4 -c:v mpeg4 test.mp4 }
+          & "$dir/MoshDeckMediaTest.exe" (Resolve-Path test.mp4).Path 3
+          if ($LASTEXITCODE -ne 0) { Get-Content "$env:TEMP/MoshDeckVJ.log" -ErrorAction SilentlyContinue; exit 1 }
+      - name: Load the bundled VST3 from a separate host (like FL Studio)
+        shell: pwsh
+        run: |
+          $host_ = "build/MoshDeckHostTest_artefacts/Release/MoshDeckHostTest.exe"
+          $vst = (Resolve-Path "build/MoshDeckVJ_artefacts/Release/VST3/MoshDeck VJ.vst3").Path
+          $p = Start-Process -FilePath $host_ -ArgumentList "--no-editor", "--report", "host-report.txt", "`"$vst`"" -Wait -PassThru -NoNewWindow
+          Get-Content host-report.txt -ErrorAction SilentlyContinue
+          Get-Content "$env:TEMP/MoshDeckVJ.log" -ErrorAction SilentlyContinue
+          if ($p.ExitCode -ne 0) { Write-Error "host test failed with exit code $($p.ExitCode)"; exit 1 }
       - uses: actions/upload-artifact@v4
         with:
           name: MoshDeckVJ-Windows-VST3

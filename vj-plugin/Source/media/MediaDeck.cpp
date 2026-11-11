@@ -12,23 +12,70 @@ extern "C"
 #endif
 
 #if JUCE_WINDOWS && MOSHDECK_HAVE_FFMPEG
-// FFmpeg DLLs ship next to the plugin binary and are delay-loaded; tell the loader where they are.
-extern "C" __declspec (dllimport) int __stdcall SetDllDirectoryW (const wchar_t*);
+// FFmpeg DLLs ship next to the plugin binary and are delay-loaded. Hosts search their own
+// folder, not ours, so load them explicitly from the plugin's folder before first use.
+extern "C" __declspec (dllimport) void* __stdcall LoadLibraryW (const wchar_t*);
 #endif
 
 namespace moshdeck
 {
-static void ensureCodecLibraryPath()
+static juce::File logFile()
+{
+    auto dir = juce::File::getSpecialLocation (juce::File::tempDirectory);
+    dir.createDirectory();
+    return dir.getChildFile ("MoshDeckVJ.log");
+}
+
+static void logLine (const juce::String& s)
+{
+    static std::mutex m;
+    std::lock_guard<std::mutex> l (m);
+    logFile().appendText (juce::Time::getCurrentTime().toString (true, true, true, true) + "  " + s + "\n");
+}
+
+/** Returns an empty string when FFmpeg is usable, otherwise a user-facing reason. */
+static juce::String ensureCodecLibraries()
 {
 #if JUCE_WINDOWS && MOSHDECK_HAVE_FFMPEG
     static std::once_flag once;
+    static juce::String problem;
     std::call_once (once, []
     {
         const auto dir = juce::File::getSpecialLocation (juce::File::currentExecutableFile).getParentDirectory();
-        SetDllDirectoryW (dir.getFullPathName().toWideCharPointer());
+        logLine ("plugin folder: " + dir.getFullPathName());
+        // dependency order: each DLL's imports must already be loaded
+        for (auto* prefix : { "avutil-", "swresample-", "swscale-", "avcodec-", "avformat-" })
+        {
+            auto found = dir.findChildFiles (juce::File::findFiles, false, juce::String (prefix) + "*.dll");
+            if (found.isEmpty())
+            {
+                if (juce::String (prefix) == "swresample-") continue; // optional
+                problem = "FFmpeg DLL " + juce::String (prefix) + "*.dll missing next to the plugin (" + dir.getFullPathName() + ")";
+                break;
+            }
+            if (LoadLibraryW (found[0].getFullPathName().toWideCharPointer()) == nullptr)
+            {
+                problem = "Could not load " + found[0].getFileName();
+                break;
+            }
+            logLine ("loaded " + found[0].getFileName());
+        }
+        if (problem.isNotEmpty()) logLine ("FFmpeg unavailable: " + problem);
     });
+    return problem;
+#else
+    return {};
 #endif
 }
+
+#if MOSHDECK_HAVE_FFMPEG
+static juce::String avError (int code)
+{
+    char buf[256] = {};
+    av_strerror (code, buf, sizeof (buf));
+    return juce::String (buf) + " (" + juce::String (code) + ")";
+}
+#endif
 
 struct MediaDeck::Impl
 {
@@ -215,19 +262,31 @@ bool MediaDeck::openFile (const juce::String& path)
     }
 
 #if MOSHDECK_HAVE_FFMPEG
-    ensureCodecLibraryPath();
+    auto fail = [this, &path] (const juce::String& why)
+    {
+        logLine ("open failed: " + path + " : " + why);
+        closeFile();
+        std::lock_guard<std::mutex> l (mutex);
+        status = why;
+        return false;
+    };
+    const auto libProblem = ensureCodecLibraries();
+    if (libProblem.isNotEmpty()) return fail (libProblem);
     auto& m = *impl;
-    if (avformat_open_input (&m.fmt, path.toRawUTF8(), nullptr, nullptr) < 0) { std::lock_guard<std::mutex> l (mutex); status = "FFmpeg could not open file"; return false; }
-    if (avformat_find_stream_info (m.fmt, nullptr) < 0) { closeFile(); return false; }
+    if (const int r = avformat_open_input (&m.fmt, path.toRawUTF8(), nullptr, nullptr); r < 0)
+        return fail ("FFmpeg could not open file: " + avError (r));
+    if (const int r = avformat_find_stream_info (m.fmt, nullptr); r < 0)
+        return fail ("Could not read stream info: " + avError (r));
     m.stream = av_find_best_stream (m.fmt, AVMEDIA_TYPE_VIDEO, -1, -1, nullptr, 0);
-    if (m.stream < 0) { closeFile(); std::lock_guard<std::mutex> l (mutex); status = "No video stream"; return false; }
+    if (m.stream < 0) return fail ("No video stream in file");
     auto* st = m.fmt->streams[m.stream];
     const AVCodec* dec = avcodec_find_decoder (st->codecpar->codec_id);
-    if (dec == nullptr) { closeFile(); std::lock_guard<std::mutex> l (mutex); status = "No decoder for codec"; return false; }
+    if (dec == nullptr) return fail (juce::String ("No decoder for codec ") + avcodec_get_name (st->codecpar->codec_id));
     m.codec = avcodec_alloc_context3 (dec);
     avcodec_parameters_to_context (m.codec, st->codecpar);
     m.codec->thread_count = 0; // auto
-    if (avcodec_open2 (m.codec, dec, nullptr) < 0) { closeFile(); return false; }
+    if (const int r = avcodec_open2 (m.codec, dec, nullptr); r < 0)
+        return fail (juce::String ("Could not open decoder ") + dec->name + ": " + avError (r));
     m.av = av_frame_alloc();
     m.pkt = av_packet_alloc();
     m.timeBase = av_q2d (st->time_base);
@@ -239,7 +298,10 @@ bool MediaDeck::openFile (const juce::String& path)
     // scale large videos down to 1280 wide for real-time use
     m.outW = m.codec->width; m.outH = m.codec->height;
     if (m.outW > 1280) { m.outH = (int) ((double) m.outH * 1280.0 / m.outW) & ~1; m.outW = 1280; }
+    if (m.codec->width <= 0 || m.codec->height <= 0 || m.codec->pix_fmt == AV_PIX_FMT_NONE)
+        return fail ("Video has no size / pixel format");
     m.sws = sws_getContext (m.codec->width, m.codec->height, m.codec->pix_fmt, m.outW, m.outH, AV_PIX_FMT_RGBA, SWS_BILINEAR, nullptr, nullptr, nullptr);
+    if (m.sws == nullptr) return fail ("Could not create colour converter");
     m.rgb.resize ((size_t) (m.outW * m.outH * 4));
     m.lastPts = -1.0;
     position = 0.0;
@@ -247,6 +309,7 @@ bool MediaDeck::openFile (const juce::String& path)
     video = true;
     {
         std::lock_guard<std::mutex> l (mutex);
+        logLine ("opened " + path + " codec=" + dec->name);
         status = "Video " + juce::String (m.codec->width) + "x" + juce::String (m.codec->height) + ", " + juce::String (dur, 1) + "s";
     }
     decodeUntil (0.0);

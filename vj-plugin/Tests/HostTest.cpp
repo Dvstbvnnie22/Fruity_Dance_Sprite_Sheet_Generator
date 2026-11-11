@@ -23,29 +23,41 @@ public:
     const juce::String getApplicationName() override { return "MoshDeckHostTest"; }
     const juce::String getApplicationVersion() override { return "1.0"; }
 
+    // usage: MoshDeckHostTest [--no-editor] [--report <file>] <plugin.vst3>
     void initialise (const juce::String& cmd) override
     {
-        juce::MessageManager::callAsync ([this, cmd] { setApplicationReturnValue (run (cmd.unquoted()) ? 0 : 1); quit(); });
+        auto args = juce::StringArray::fromTokens (cmd, true);
+        for (auto& a : args) a = a.unquoted();
+        juce::String plugin;
+        for (int i = 0; i < args.size(); ++i)
+        {
+            if (args[i] == "--no-editor") noEditor = true;
+            else if (args[i] == "--report" && i + 1 < args.size()) report = juce::File (args[++i]);
+            else if (args[i].isNotEmpty()) plugin = args[i];
+        }
+        juce::MessageManager::callAsync ([this, plugin] { setApplicationReturnValue (run (plugin) ? 0 : 1); quit(); });
     }
+    bool noEditor = false;
+    juce::File report;
+    void out (const juce::String& s) { std::cout << s << std::endl; if (report != juce::File()) report.appendText (s + "\n"); }
     void shutdown() override {}
 
     bool run (const juce::String& path)
     {
         int fails = 0;
-        auto check = [&] (bool c, const char* what) { std::cout << (c ? "  ok   " : "  FAIL ") << what << std::endl; if (! c) ++fails; };
+        auto check = [&] (bool c, const char* what) { out (juce::String (c ? "  ok   " : "  FAIL ") + what); if (! c) ++fails; };
 
         juce::VST3PluginFormat fmt;
         juce::OwnedArray<juce::PluginDescription> descs;
         fmt.findAllTypesForFile (descs, path);
         check (descs.size() == 1, "VST3 scanned, one plugin found");
         if (descs.isEmpty()) return false;
-        std::cout << "  name=" << descs[0]->name << " vendor=" << descs[0]->manufacturerName
-                  << " ins=" << descs[0]->numInputChannels << " outs=" << descs[0]->numOutputChannels << std::endl;
+        out ("  name=" + descs[0]->name + " vendor=" + descs[0]->manufacturerName);
 
         juce::String err;
         auto inst = fmt.createInstanceFromDescription (*descs[0], 44100.0, 512, err);
         check (inst != nullptr, "instantiated");
-        if (inst == nullptr) { std::cout << err << std::endl; return false; }
+        if (inst == nullptr) { out ("  load error: " + err); return false; }
         check (inst->acceptsMidi(), "accepts MIDI");
         check (inst->producesMidi(), "produces MIDI");
         check (inst->getParameters().size() >= 18, "host parameters (crossfader, master, 16 macros)");
@@ -82,7 +94,7 @@ public:
         check (passthrough, "audio passes through unchanged");
         check (midiOutEvents > 0, "MIDI OUT events generated");
         check (noteOns > 10, "onset notes generated from kicks");
-        std::cout << "  midi out events=" << midiOutEvents << " noteOns=" << noteOns << std::endl;
+        out ("  midi out events=" + juce::String (midiOutEvents) + " noteOns=" + juce::String (noteOns));
 
         juce::MemoryBlock state;
         inst->getStateInformation (state);
@@ -92,7 +104,8 @@ public:
         inst->getStateInformation (state2);
         check (state2.getSize() > 100, "state restored and re-saved");
 
-        if (auto* ed = inst->createEditorIfNeeded())
+        if (noEditor) {}
+        else if (auto* ed = inst->createEditorIfNeeded())
         {
             check (true, "editor created");
             juce::DocumentWindow w ("host", juce::Colours::black, 0);
@@ -112,7 +125,7 @@ public:
 
         inst->releaseResources();
         inst.reset();
-        std::cout << (fails == 0 ? "HOST TEST PASSED" : "HOST TEST FAILED") << std::endl;
+        out (fails == 0 ? "HOST TEST PASSED" : "HOST TEST FAILED");
         return fails == 0;
     }
 };
