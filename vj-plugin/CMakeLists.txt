@@ -95,6 +95,7 @@ if(MOSHDECK_BUILD_TESTS)
         Source/milk/BuiltinMilkPresets.cpp
         Source/audio/AudioAnalyzer.cpp
         Source/model/Scene.cpp
+        Source/model/Crossfader.cpp
         Source/model/ModMatrix.cpp
         Source/render/ShadertoyImporter.cpp
         Source/render/EffectLibrary.cpp

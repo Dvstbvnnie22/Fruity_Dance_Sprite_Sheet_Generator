@@ -3,11 +3,12 @@
 using namespace moshdeck;
 
 MoshDeckEditor::MoshDeckEditor (MoshDeckProcessor& p)
-    : juce::AudioProcessorEditor (p), proc (p), top (p), deckA (p, 0), deckB (p, 1), layerList (p), inspector (p),
+    : juce::AudioProcessorEditor (p), proc (p), top (p), xfPanel (p), deckA (p, 0), deckB (p, 1), layerList (p), inspector (p),
       modPanel (p), midiPanel (p), audioPanel (p), preview (p)
 {
     setLookAndFeel (&lnf);
     addAndMakeVisible (top);
+    addAndMakeVisible (xfPanel);
     addAndMakeVisible (deckA);
     addAndMakeVisible (deckB);
     addAndMakeVisible (layerList);
@@ -75,6 +76,7 @@ void MoshDeckEditor::resized()
 {
     auto r = getLocalBounds();
     top.setBounds (r.removeFromTop (44));
+    xfPanel.setBounds (r.removeFromTop (58));
     r.reduce (4, 4);
     auto left = r.removeFromLeft (300);
     deckA.setBounds (left.removeFromTop (left.getHeight() / 2));

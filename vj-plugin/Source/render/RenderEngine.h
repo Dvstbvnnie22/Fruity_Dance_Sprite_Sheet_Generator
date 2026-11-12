@@ -133,6 +133,8 @@ private:
     float pulse = 0.0f;
     int frameCounter = 0;
     double lastDeckBar[2] = { -1.0, -1.0 };
+    float xfShown = 0.0f;
+    bool xfInit = false;
 
     std::atomic<double> fps { 0.0 };
     bool wantThumb = false;

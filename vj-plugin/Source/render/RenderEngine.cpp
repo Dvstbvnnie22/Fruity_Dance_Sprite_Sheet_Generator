@@ -3,6 +3,7 @@
 #include "ShaderPrelude.h"
 #include "VizLibrary.h"
 #include "model/Scene.h"
+#include "model/Crossfader.h"
 
 namespace moshdeck
 {
@@ -276,10 +277,18 @@ void RenderEngine::updateDecks (double dt, const SceneData& sd, const std::vecto
         }
     }
     deckMix.ensure (fs.W, fs.H);
+    {
+        const int xMode = (int) std::round (val ("G.xfade.mode"));
+        const int xCurve = (int) std::round (val ("G.xfade.curve"));
+        const bool xRev = val ("G.xfade.rev") > 0.5f;
+        const float target = xf::shape (val (Scene::crossfaderId, 0.0f), xMode, xCurve, xRev, val ("G.xfade.cut", 0.5f));
+        if (! xfInit) { xfShown = target; xfInit = true; }
+        xfShown = xf::smooth (xfShown, target, (float) dt, val ("G.xfade.smooth"));
+    }
     if (auto* s = builtin ("deckmix", mixBody))
     {
         deckMix.bind();
-        setCommon (*s, nullptr, val (Scene::crossfaderId, 0.0f), 0);
+        setCommon (*s, nullptr, xfShown, 0);
         bindCommonTextures (0, 0, 0, 0);
         geo.drawQuad();
     }

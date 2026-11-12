@@ -10,6 +10,7 @@
 #include "render/ShadertoyImporter.h"
 #include "render/ShaderPrelude.h"
 #include "render/VizLibrary.h"
+#include "model/Crossfader.h"
 
 using namespace moshdeck;
 
@@ -149,6 +150,53 @@ static void testShadertoy()
     CHECK (q.passes[1].channels[1].kind == ShadertoyProject::ChannelKind::Audio);
 }
 
+static void testCrossfader()
+{
+    using namespace xf;
+    for (int c = 0; c < numCurves; ++c)
+    {
+        CHECK_NEAR (shape (0.0f, modeFade, c, false, 0.5f), 0.0);
+        CHECK_NEAR (shape (1.0f, modeFade, c, false, 0.5f), 1.0);
+        float prev = -1.0f;
+        for (int i = 0; i <= 200; ++i)
+        {
+            const float v = shape (i / 200.0f, modeFade, c, false, 0.5f);
+            CHECK (v >= prev - 1e-6f);   // never goes backwards
+            CHECK (v >= 0.0f && v <= 1.0f);
+            prev = v;
+        }
+    }
+    // curves differ where they should
+    CHECK (shape (0.25f, modeFade, curveSharpA, false, 0.5f) < shape (0.25f, modeFade, curveLinear, false, 0.5f));
+    CHECK (shape (0.25f, modeFade, curveSharpB, false, 0.5f) > shape (0.25f, modeFade, curveLinear, false, 0.5f));
+    CHECK (shape (0.5f, modeFade, curveSmooth, false, 0.5f) > 0.49f && shape (0.5f, modeFade, curveSmooth, false, 0.5f) < 0.51f);
+
+    // reverse (hamster / inverse) mirrors the position
+    CHECK_NEAR (shape (0.2f, modeFade, curveLinear, true, 0.5f), shape (0.8f, modeFade, curveLinear, false, 0.5f));
+    CHECK_NEAR (shape (0.0f, modeFade, curveSharpB, true, 0.5f), 1.0);
+
+    // cut mode: hard switch at the cut point
+    CHECK_NEAR (shape (0.3f, modeCut, curveLinear, false, 0.5f), 0.0);
+    CHECK_NEAR (shape (0.7f, modeCut, curveLinear, false, 0.5f), 1.0);
+    CHECK_NEAR (shape (0.7f, modeCut, curveLinear, false, 0.8f), 0.0);  // cut moved right: B is later
+    CHECK_NEAR (shape (0.3f, modeCut, curveLinear, true, 0.5f), 1.0);   // reversed: now B on the left
+
+    // smoothing: instant when 0, settles within about a second at 200 ms
+    CHECK_NEAR (smooth (0.0f, 1.0f, 1.0f / 60.0f, 0.0f), 1.0);
+    float v = 0.0f;
+    for (int i = 0; i < 60; ++i) v = smooth (v, 1.0f, 1.0f / 60.0f, 200.0f);
+    CHECK (v > 0.98f);
+
+    // the parameters exist in the scene and default to a plain fade
+    Scene sc;
+    Param prm;
+    CHECK (sc.getParam ("G.xfade.mode", prm) && prm.def == 0.0f);
+    CHECK (sc.getParam ("G.xfade.curve", prm) && prm.max == 3.0f);
+    CHECK (sc.getParam ("G.xfade.rev", prm));
+    CHECK (sc.getParam ("G.xfade.cut", prm) && prm.def == 0.5f);
+    CHECK (sc.getParam ("G.xfade.smooth", prm));
+}
+
 static void dumpShaders (const juce::File& dir)
 {
     dir.createDirectory();
@@ -169,6 +217,7 @@ int main (int argc, char** argv)
     testMilk();
     testScene();
     testShadertoy();
+    testCrossfader();
     if (argc > 1) dumpShaders (juce::File (argv[1]));
     std::cout << "effects: " << EffectLibrary::all().size() << ", generators: " << GeneratorLibrary::count()
               << ", milk presets: " << milk::BuiltinMilkPresets::names().size() << "\n";

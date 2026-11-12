@@ -22,7 +22,7 @@ private:
     juce::ComboBox syncMode, canvas, display;
     juce::TextButton tap { "TAP" }, nudgeBack { "<" }, nudgeFwd { ">" }, output { "Output Window" }, fullscreen { "Fullscreen" },
                      save { "Save Scene" }, load { "Load Scene" };
-    std::unique_ptr<ParamSlider> xfade, master;
+    std::unique_ptr<ParamSlider> master;
     double beatPhase = 0; bool playing = false;
     std::unique_ptr<juce::FileChooser> chooser;
 };

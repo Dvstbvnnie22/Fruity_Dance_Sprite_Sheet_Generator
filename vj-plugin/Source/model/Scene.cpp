@@ -136,7 +136,12 @@ void Scene::resetToDefault()
 
 void Scene::addGlobalParams()
 {
-    addParam (crossfaderId, "Crossfader A/B", "Global", 0, 1, 0);
+    addParam (crossfaderId, "Crossfader A/B", "Crossfader", 0, 1, 0);
+    addParam ("G.xfade.mode", "Crossfader Mode (0 Fade, 1 Cut)", "Crossfader", 0, 1, 0);
+    addParam ("G.xfade.curve", "Crossfader Curve (0 Linear, 1 Smooth, 2 Sharp A, 3 Sharp B)", "Crossfader", 0, 3, 0);
+    addParam ("G.xfade.rev", "Crossfader Reverse (hamster / inverse)", "Crossfader", 0, 1, 0);
+    addParam ("G.xfade.cut", "Crossfader Cut Point", "Crossfader", 0, 1, 0.5f);
+    addParam ("G.xfade.smooth", "Crossfader Smoothing (ms)", "Crossfader", 0, 500, 0);
     addParam (masterId, "Master Brightness", "Global", 0, 2, 1);
     const float divs[] = { 1, 2, 4, 8 };
     for (int i = 0; i < 4; ++i)

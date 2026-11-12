@@ -80,9 +80,8 @@ TopBar::TopBar (MoshDeckProcessor& p) : proc (p)
     };
     addAndMakeVisible (output); addAndMakeVisible (fullscreen);
 
-    xfade = std::make_unique<ParamSlider> (proc, Scene::crossfaderId, "A / B");
     master = std::make_unique<ParamSlider> (proc, Scene::masterId, "Master");
-    addAndMakeVisible (*xfade); addAndMakeVisible (*master);
+    addAndMakeVisible (*master);
 
     save.onClick = [this]
     {
@@ -118,7 +117,6 @@ void TopBar::resized()
     nudgeBack.setBounds (r.removeFromLeft (26).reduced (2));
     nudgeFwd.setBounds (r.removeFromLeft (26).reduced (2));
     r.removeFromLeft (8);
-    xfade->setBounds (r.removeFromLeft (200).reduced (2, 4));
     master->setBounds (r.removeFromLeft (180).reduced (2, 4));
     load.setBounds (r.removeFromRight (90).reduced (2));
     save.setBounds (r.removeFromRight (90).reduced (2));
@@ -864,7 +862,8 @@ MidiPanel::MidiPanel (MoshDeckProcessor& p) : proc (p)
     const std::pair<const char*, const char*> actions[] = {
         { "A.deckA.next", "Deck A next" }, { "A.deckA.prev", "Deck A prev" }, { "A.deckB.next", "Deck B next" }, { "A.deckB.prev", "Deck B prev" },
         { "A.milk.next", "Milk next" }, { "A.milk.random", "Milk random" }, { "A.tap", "Tap tempo" }, { "A.xfade.cut", "X-fade cut" },
-        { "A.nudge.back", "Nudge -" }, { "A.nudge.fwd", "Nudge +" } };
+        { "A.nudge.back", "Nudge -" }, { "A.nudge.fwd", "Nudge +" },
+        { "A.xfade.reverse", "X-fade reverse" }, { "A.xfade.mode", "X-fade cut/fade" }, { "A.xfade.curve", "X-fade curve" } };
     for (auto& a : actions)
     {
         auto* b = new juce::TextButton (juce::String ("Learn: ") + a.second);
@@ -975,7 +974,7 @@ void MidiPanel::resized()
     learnState.setBounds (top);
 
     auto right = r.removeFromRight (juce::jmin (420, r.getWidth() / 2));
-    auto acts = right.removeFromTop (5 * 24);
+    auto acts = right.removeFromTop (((actionButtons.size() + 1) / 2) * 24);
     for (int i = 0; i < actionButtons.size(); ++i)
         actionButtons[i]->setBounds (acts.getX() + (i % 2) * acts.getWidth() / 2, acts.getY() + (i / 2) * 24, acts.getWidth() / 2 - 2, 22);
     right.removeFromTop (4);

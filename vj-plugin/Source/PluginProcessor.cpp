@@ -2,6 +2,7 @@
 #include "PluginEditor.h"
 #include "ui/VideoView.h"
 #include "milk/MilkPreset.h"
+#include "model/Crossfader.h"
 
 using namespace moshdeck;
 
@@ -189,6 +190,7 @@ void MoshDeckProcessor::stepMilkPreset (const juce::String& uid, int delta, bool
 
 void MoshDeckProcessor::performAction (const juce::String& a)
 {
+    auto flip = [this] (const char* id) { scene.setValue (id, scene.getValue (id) > 0.5f ? 0.0f : 1.0f); };
     if (a == "A.deckA.next") nextDeckClip (0, 1);
     else if (a == "A.deckA.prev") nextDeckClip (0, -1);
     else if (a == "A.deckB.next") nextDeckClip (1, 1);
@@ -201,6 +203,10 @@ void MoshDeckProcessor::performAction (const juce::String& a)
     }
     else if (a == "A.xfade.cut")
         scene.setValue (Scene::crossfaderId, scene.getValue (Scene::crossfaderId) < 0.5f ? 1.0f : 0.0f);
+    else if (a == "A.xfade.reverse") flip ("G.xfade.rev");
+    else if (a == "A.xfade.mode") flip ("G.xfade.mode");
+    else if (a == "A.xfade.curve")
+        scene.setValue ("G.xfade.curve", (float) ((((int) std::round (scene.getValue ("G.xfade.curve"))) + 1) % xf::numCurves));
     else if (a == "A.nudge.fwd") clock.nudge (0.05);
     else if (a == "A.nudge.back") clock.nudge (-0.05);
 }

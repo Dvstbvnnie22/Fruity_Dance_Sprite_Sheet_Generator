@@ -67,6 +67,19 @@ Useful options: `-DMOSHDECK_FORMATS="VST3;Standalone"`, `-DMOSHDECK_USE_FFMPEG=O
 * `MoshDeckRenderTest`: renders every generator, visualizer, Milk preset and effect, plus Shadertoy (single- and multi-pass) and a full layer stack, through the real OpenGL engine with synthetic 120 BPM audio. It reports shader/GL errors and black output and writes contact sheets (`sheet_*.png`).
 * `MoshDeckHostTest`: loads the built VST3 the way a DAW does. It checks that audio passes through unchanged, MIDI out and onset notes appear, state saves and restores, and the editor opens.
 
+## Crossfader
+
+A full-width crossfader strip sits under the top bar. It blends Deck A and Deck B.
+
+- **Fader:** drag it; double-click to centre; mouse wheel nudges it; right-click for MIDI Learn or modulation.
+- **Mode:** *Fade* blends smoothly. *Cut* switches hard at the **Cut at** point.
+- **Curve:** *Linear*; *Smooth* (S-curve, soft at both ends); *Sharp A* (Deck B arrives late); *Sharp B* (Deck B arrives early).
+- **REV (hamster / inverse):** flips the direction, so A and B swap.
+- **Smooth ms:** softens a cut into a glide over that many milliseconds (0 = instant).
+- **MIDI:** every setting is a scene parameter, so it can be MIDI-learned or automated. The MIDI Learn / Out tab also has actions for *X-fade reverse*, *X-fade cut/fade* and *X-fade curve*.
+
+The crossfader blends the video decks only. The FL audio passes through unchanged.
+
 ## Source layout
 
 ```

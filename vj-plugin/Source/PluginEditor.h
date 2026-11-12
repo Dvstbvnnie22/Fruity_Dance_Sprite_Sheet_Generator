@@ -2,6 +2,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "PluginProcessor.h"
 #include "ui/Panels.h"
+#include "ui/CrossfaderPanel.h"
 #include "ui/Theme.h"
 #include "ui/VideoView.h"
 
@@ -33,6 +34,7 @@ private:
     moshdeck::theme::LookAndFeel lnf;
     juce::TooltipWindow tooltips { this, 600 };
     moshdeck::TopBar top;
+    moshdeck::CrossfaderPanel xfPanel;
     moshdeck::DeckPanel deckA, deckB;
     moshdeck::LayerListPanel layerList;
     moshdeck::InspectorPanel inspector;
