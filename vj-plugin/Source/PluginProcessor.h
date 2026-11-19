@@ -7,6 +7,7 @@
 #include "model/Scene.h"
 #include "media/MediaDeck.h"
 #include "render/RenderEngine.h"
+#include "io/Broadcaster.h"
 
 namespace moshdeck { class OutputWindow; }
 
@@ -44,8 +45,8 @@ public:
     void buildFrameInput (moshdeck::FrameInput&) override;
     void getCanvasSize (int& w, int& h) override { w = canvasW.load(); h = canvasH.load(); }
     void setLayerStatus (const juce::String& uid, const juce::String& status) override;
-    void onDeckAdvance (int deck) override;
-    void onMilkAdvance (const juce::String& layerUid) override;
+    void onDeckAdvance (int deck, double slot) override;
+    void onMilkAdvance (const juce::String& layerUid, double slot) override;
 
     // ---- app API (message thread)
     juce::String getLayerStatus (const juce::String& uid) const;
@@ -61,6 +62,9 @@ public:
     void closeOutputWindow();
     bool isOutputWindowOpen() const { return outputWindow != nullptr; }
     moshdeck::RenderEngine* getOutputEngine() const;
+
+    /** Spout / NDI output of the final mix (runs without any window open). */
+    moshdeck::Broadcaster& getBroadcaster() { return *broadcaster; }
 
     juce::ValueTree saveScenePreset() const;
     void loadScenePreset (const juce::ValueTree&);
@@ -95,6 +99,12 @@ private:
     std::atomic<bool> lastPlaying { false };
     std::atomic<int> lastBpb { 4 };
     juce::Random rng;
+    std::atomic<double> lastDeckSlot[2] { { -1.0 }, { -1.0 } };
+    std::map<juce::String, double> lastMilkSlot;
+    juce::CriticalSection milkSlotLock;
+
+    // declared last: destroyed first, while everything it renders is still alive
+    std::unique_ptr<moshdeck::Broadcaster> broadcaster;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MoshDeckProcessor)
 };

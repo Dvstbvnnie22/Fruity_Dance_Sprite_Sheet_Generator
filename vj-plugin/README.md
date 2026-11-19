@@ -39,6 +39,23 @@ and renders a layered live visual show into a preview and a separate (fullscreen
 * *Avee-style music video:* **+ Layer → Visualizer template → Circle spectrum + cover image + particles**, then load cover art into Deck A.
 * *Link parameters:* right-click a slider → **Link to parameter**. The slider then follows the other parameter by the route amount (negative amounts invert it).
 
+## Spout & NDI (video in and out)
+
+MoshDeck can send its final mix to other apps and take live video from them.
+
+**Output** - click **Spout / NDI** in the top bar:
+* **Spout output** (Windows): shares the mix with apps on the same PC - OBS (Spout2 plugin), Resolume, TouchDesigner, ZGameEditor-compatible tools, SpoutReceiver...
+* **NDI output**: sends the mix over the network as an NDI source (shown in receivers as `COMPUTER (MoshDeck VJ)`). Needs **NDI Tools** or the **NDI Runtime** installed (free from ndi.video); MoshDeck loads the runtime from there and ships no NDI files itself.
+* Both send the final mix (after the master chain) at the **canvas size** set in the top bar, at the frame rate you pick (24-60 fps).
+* They run in their own hidden render engine, so they **keep running when the plugin window and the output window are closed**. The settings and names are saved with the FL project. The button shows **Spout/NDI ON** while sending.
+* A second MoshDeck instance in the same project defaults to the name `MoshDeck VJ 2`, and so on.
+
+**Input** - click **Live** next to a deck's playlist and pick a running Spout sender or NDI source. It is added to the playlist like a clip (`Spout: name` / `NDI: name`), so it can be crossfaded, fed into Milk presets and Shadertoy channels, datamoshed with the other deck, etc. If the source isn't running yet the deck waits for it and connects as soon as it appears. NDI sources can take a second or two to show up the first time you open the menu.
+
+**FL Studio + ZGameEditor tip:** put MoshDeck and ZGameEditor Visualizer on the same mixer track, turn on MoshDeck's Spout output and capture both in OBS (Spout2 source + window capture), or feed another app's Spout/NDI output into a MoshDeck deck and mix it live.
+
+*NDI(R) is a registered trademark of Vizrt NDI AB. Spout is by Lynn Jarvis (spout.zeal.co), BSD-2-Clause.*
+
 ## Building
 
 Requirements: CMake ≥ 3.22 and a C++17 compiler. JUCE 8.0.9 is fetched automatically. FFmpeg is optional (without it, decks show still images only).
@@ -59,12 +76,18 @@ cmake --build build --config Release
 
 The GitHub Actions workflow (`.github/workflows/moshdeck-vj.yml`) builds Windows (with FFmpeg bundled), macOS and Linux, and uploads the `.vst3` files as build artifacts.
 
-Useful options: `-DMOSHDECK_FORMATS="VST3;Standalone"`, `-DMOSHDECK_USE_FFMPEG=OFF`, `-DFETCHCONTENT_SOURCE_DIR_JUCE=/path/to/JUCE`.
+Useful options: `-DMOSHDECK_FORMATS="VST3;Standalone"`, `-DMOSHDECK_USE_FFMPEG=OFF`, `-DFETCHCONTENT_SOURCE_DIR_JUCE=/path/to/JUCE`,
+`-DMOSHDECK_USE_SPOUT=OFF`, `-DMOSHDECK_USE_NDI=OFF`, `-DFETCHCONTENT_SOURCE_DIR_SPOUT2=/path/to/Spout2`.
+
+Spout: on Windows the SpoutDX files of the Spout2 SDK (2.007.018) are downloaded and compiled in automatically.
+NDI: nothing is needed at build time - the few NDI C functions MoshDeck uses are declared in `Source/io/NdiApi.h`
+and resolved from the installed NDI runtime when the plugin first uses NDI.
 
 ## Tests
 
 * `MoshDeckTests`: the expression language, `.milk` parsing and execution of every built-in preset, the scene model, the mod matrix and parameter linking, state round-trip, and Shadertoy JSON import. Pass a folder argument to dump all 112 effect/generator/visualizer shaders plus a Shadertoy sample shader for `glslangValidator`.
 * `MoshDeckRenderTest`: renders every generator, visualizer, Milk preset and effect, plus Shadertoy (single- and multi-pass) and a full layer stack, through the real OpenGL engine with synthetic 120 BPM audio. It reports shader/GL errors and black output and writes contact sheets (`sheet_*.png`).
+* `MoshDeckIoTest`: renders a test pattern through the headless Spout/NDI broadcaster, sends it out over Spout and NDI, receives it back through the deck's live-input path and checks size, orientation and colours (Spout/NDI parts are skipped when unavailable).
 * `MoshDeckHostTest`: loads the built VST3 the way a DAW does. It checks that audio passes through unchanged, MIDI out and onset notes appear, state saves and restores, and the editor opens.
 
 ## Crossfader
@@ -88,7 +111,8 @@ Source/
   audio/    AudioAnalyzer (FFT, bands, onsets, tempo detect), BeatClock (host sync)
   midi/     MidiLearn (learn + feedback), MidiOut (onset/beat notes, CCs, clock)
   model/    Scene (layers, effects, params, decks, persistence), ModMatrix (modulation & links)
-  media/    MediaDeck (image / GIF / FFmpeg video decoding on a worker thread)
+  media/    MediaDeck (image / GIF / FFmpeg video decoding and live Spout/NDI inputs on a worker thread)
+  io/       Broadcaster (headless Spout/NDI output), HeadlessGL, SpoutIO (SpoutDX), NdiApi (runtime-loaded NDI), LiveSources
   milk/     ExprEval (MilkDrop equation language), MilkPreset (parser + per-frame/per-pixel state), built-in presets
   render/   RenderEngine (layer compositor), MilkRenderer, ShadertoyImporter, EffectLibrary,
             GeneratorLibrary, VizLibrary, ShaderPrelude, GLUtils

@@ -15,13 +15,15 @@ struct VideoFrame
     std::vector<uint8_t> rgba;
     int width = 0, height = 0;
     uint64_t serial = 0;
+    bool bgra = false; // channel order of `rgba` (live Spout sources are usually BGRA)
 };
 
 /**
     One media "main track": plays a still image, animated GIF or video file
-    (video via FFmpeg when available). Decoding runs on a background thread;
-    the render thread drives the playhead (free-running or locked to the beat)
-    and pulls the newest frame.
+    (video via FFmpeg when available), or a live Spout / NDI input
+    ("spout:<name>" / "ndi:<name>", see io/LiveSources.h). Decoding and
+    receiving run on a background thread; the render threads drive the
+    playhead (free-running or locked to the beat) and pull the newest frame.
 */
 class MediaDeck
 {
@@ -32,11 +34,14 @@ public:
     void load (const juce::String& path);          // async
     juce::String getPath() const;
     bool isVideo() const { return video.load(); }
+    bool isLive() const { return live.load(); }
     double getDuration() const { return duration.load(); }
     double getPosition() const { return position.load(); }
     juce::String getStatus() const;
 
-    /** Advance the playhead. loopBeats > 0 stretches the clip so it loops exactly every N beats. */
+    /** Advance the playhead. loopBeats > 0 stretches the clip so it loops exactly every N beats.
+        Safe to call from several render threads: free-running playback advances by the real
+        time since the previous call from any of them, so extra views don't speed clips up. */
     void tick (double dtSeconds, double speed, double beats, double loopBeats, double cue);
 
     /** Copies the newest frame if its serial differs from `lastSerial`. */
@@ -50,7 +55,8 @@ private:
     bool openFile (const juce::String& path);
     void closeFile();
     bool decodeUntil (double t);
-    void publish (const uint8_t* rgbaTopDown, int w, int h, int strideBytes);
+    void publish (const uint8_t* rgbaTopDown, int w, int h, int strideBytes, bool bgra = false);
+    void pollLive();
 
     struct Impl;
     std::unique_ptr<Impl> impl;
@@ -66,6 +72,8 @@ private:
     VideoFrame frame;
 
     std::atomic<double> position { 0.0 }, target { 0.0 }, duration { 0.0 };
-    std::atomic<bool> video { false };
+    std::atomic<bool> video { false }, live { false };
+    std::mutex tickMutex;
+    double lastTickTime = -1.0;
 };
 } // namespace moshdeck

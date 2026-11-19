@@ -30,8 +30,8 @@ struct TestHost : EngineHost
     }
     void getCanvasSize (int& w, int& h) override { w = 480; h = 270; }
     void setLayerStatus (const juce::String& uid, const juce::String& s) override { status[uid] = s; }
-    void onDeckAdvance (int) override {}
-    void onMilkAdvance (const juce::String&) override {}
+    void onDeckAdvance (int, double) override {}
+    void onMilkAdvance (const juce::String&, double) override {}
 };
 
 struct Phase { juce::String name, sheet; std::function<void (Scene&)> setup; int frames; };

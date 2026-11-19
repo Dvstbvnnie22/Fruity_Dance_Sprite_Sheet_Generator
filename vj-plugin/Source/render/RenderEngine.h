@@ -27,8 +27,10 @@ struct EngineHost
     virtual void buildFrameInput (FrameInput&) = 0;
     virtual void getCanvasSize (int& w, int& h) = 0;
     virtual void setLayerStatus (const juce::String& layerUid, const juce::String& status) = 0;
-    virtual void onDeckAdvance (int deck) = 0;   // playlist "next clip" timing reached
-    virtual void onMilkAdvance (const juce::String& layerUid) = 0;
+    /** Playlist "next clip" timing reached. `slot` identifies the time slot, so a host can ignore
+        the duplicate calls it gets when several engines (views) render the same scene. */
+    virtual void onDeckAdvance (int deck, double slot) = 0;
+    virtual void onMilkAdvance (const juce::String& layerUid, double slot) = 0;
 };
 
 /**
@@ -43,8 +45,13 @@ public:
     ~RenderEngine();
 
     void contextCreated();
-    void renderFrame (int viewportW, int viewportH, float scale);
+    /** Renders one frame. With present = false nothing is drawn to the current default framebuffer
+        (headless use: read the result from getOutput()). */
+    void renderFrame (int viewportW, int viewportH, float scale, bool present = true);
     void contextClosing();
+
+    /** The finished frame of the last renderFrame() call (canvas size, GL thread only). */
+    const gl::Target& getOutput() const { return output; }
 
     /** Optionally capture a small RGB thumbnail of the output (for a second preview). */
     void requestThumbnail (bool on) { wantThumb = on; }

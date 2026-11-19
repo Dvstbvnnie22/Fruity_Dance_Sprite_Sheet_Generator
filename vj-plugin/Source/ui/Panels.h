@@ -2,6 +2,7 @@
 #include <juce_gui_extra/juce_gui_extra.h>
 #include "ParamSlider.h"
 #include "audio/AudioAnalyzer.h"
+#include "io/NdiApi.h"
 
 class MoshDeckProcessor;
 
@@ -21,10 +22,28 @@ private:
     juce::Label title, bpm;
     juce::ComboBox syncMode, canvas, display;
     juce::TextButton tap { "TAP" }, nudgeBack { "<" }, nudgeFwd { ">" }, output { "Output Window" }, fullscreen { "Fullscreen" },
-                     save { "Save Scene" }, load { "Load Scene" };
+                     io { "Spout / NDI" }, save { "Save Scene" }, load { "Load Scene" };
     std::unique_ptr<ParamSlider> master;
     double beatPhase = 0; bool playing = false;
     std::unique_ptr<juce::FileChooser> chooser;
+};
+
+//==============================================================================
+/** Spout / NDI output settings (shown in a call-out from the top bar). */
+class VideoIoPanel : public juce::Component, private juce::Timer
+{
+public:
+    explicit VideoIoPanel (MoshDeckProcessor&);
+    void resized() override;
+    void paint (juce::Graphics&) override;
+private:
+    void timerCallback() override;
+    void apply();
+    MoshDeckProcessor& proc;
+    juce::Label title, spoutStatus, ndiStatus, fpsLabel, renderStatus, info;
+    juce::ToggleButton spoutOn { "Spout output" }, ndiOn { "NDI output" };
+    juce::TextEditor spoutName, ndiName;
+    juce::ComboBox fps;
 };
 
 //==============================================================================
@@ -42,8 +61,10 @@ private:
     MoshDeckProcessor& proc;
     int deck;
     juce::Label title, status;
-    juce::TextButton loadBtn { "Load..." }, addBtn { "Add..." }, prev { "<" }, next { ">" }, clear { "Clear" };
+    void showLiveMenu();
+    juce::TextButton loadBtn { "Load..." }, addBtn { "Add..." }, prev { "<" }, next { ">" }, clear { "Clear" }, liveBtn { "Live" };
     juce::ComboBox playlist;
+    std::unique_ptr<ndi::FinderLease> ndiLease; // keeps NDI discovery running while this panel exists
     std::unique_ptr<ParamPanel> params;
     std::unique_ptr<juce::FileChooser> chooser;
 };

@@ -4,6 +4,8 @@
 #include "render/EffectLibrary.h"
 #include "render/ShadertoyImporter.h"
 #include "milk/MilkPreset.h"
+#include "io/LiveSources.h"
+#include "io/SpoutIO.h"
 
 namespace moshdeck
 {
@@ -80,6 +82,13 @@ TopBar::TopBar (MoshDeckProcessor& p) : proc (p)
     };
     addAndMakeVisible (output); addAndMakeVisible (fullscreen);
 
+    io.setTooltip ("Send the final mix to OBS, Resolume, ZGameEditor and other apps over Spout (this PC) or NDI (network)");
+    io.onClick = [this]
+    {
+        juce::CallOutBox::launchAsynchronously (std::make_unique<VideoIoPanel> (proc), io.getScreenBounds(), nullptr);
+    };
+    addAndMakeVisible (io);
+
     master = std::make_unique<ParamSlider> (proc, Scene::masterId, "Master");
     addAndMakeVisible (*master);
 
@@ -117,13 +126,14 @@ void TopBar::resized()
     nudgeBack.setBounds (r.removeFromLeft (26).reduced (2));
     nudgeFwd.setBounds (r.removeFromLeft (26).reduced (2));
     r.removeFromLeft (8);
-    master->setBounds (r.removeFromLeft (180).reduced (2, 4));
+    master->setBounds (r.removeFromLeft (150).reduced (2, 4));
     load.setBounds (r.removeFromRight (90).reduced (2));
     save.setBounds (r.removeFromRight (90).reduced (2));
-    fullscreen.setBounds (r.removeFromRight (90).reduced (2));
-    output.setBounds (r.removeFromRight (110).reduced (2));
-    display.setBounds (r.removeFromRight (190).reduced (2));
-    canvas.setBounds (r.removeFromRight (120).reduced (2));
+    io.setBounds (r.removeFromRight (92).reduced (2));
+    fullscreen.setBounds (r.removeFromRight (84).reduced (2));
+    output.setBounds (r.removeFromRight (108).reduced (2));
+    display.setBounds (r.removeFromRight (juce::jmin (170, juce::jmax (90, r.getWidth() - 110))).reduced (2));
+    canvas.setBounds (r.removeFromRight (juce::jmin (110, r.getWidth())).reduced (2));
 }
 
 void TopBar::paint (juce::Graphics& g)
@@ -155,8 +165,117 @@ void TopBar::timerCallback()
     juce::ignoreUnused (bp, pl, bpb);
     beatPhase = std::fmod (juce::Time::getMillisecondCounterHiRes() * 0.001 * b / 60.0, 4.0);
     output.setButtonText (proc.isOutputWindowOpen() ? "Close Output" : "Output Window");
+    const auto ioSet = proc.getBroadcaster().getSettings();
+    const bool ioOn = ioSet.spout || ioSet.ndi;
+    io.setColour (juce::TextButton::buttonColourId, ioOn ? theme::accent2.withAlpha (0.45f) : theme::panelHi);
+    io.setButtonText (ioOn ? juce::String ("Spout/NDI ON") : juce::String ("Spout / NDI"));
     repaint (300, 0, 40, getHeight());
 }
+
+//==============================================================================
+VideoIoPanel::VideoIoPanel (MoshDeckProcessor& p) : proc (p)
+{
+    title.setText ("SPOUT / NDI OUTPUT", juce::dontSendNotification);
+    styleHeader (title);
+    title.setColour (juce::Label::textColourId, theme::accent2);
+    addAndMakeVisible (title);
+
+    const auto s = proc.getBroadcaster().getSettings();
+    spoutOn.setToggleState (s.spout, juce::dontSendNotification);
+    ndiOn.setToggleState (s.ndi, juce::dontSendNotification);
+    spoutName.setText (s.spoutName, juce::dontSendNotification);
+    ndiName.setText (s.ndiName, juce::dontSendNotification);
+    spoutOn.setTooltip ("Share the mix with other apps on this PC (OBS Spout2 plugin, Resolume, TouchDesigner, SpoutReceiver...)");
+    ndiOn.setTooltip ("Send the mix over the network as an NDI source (needs NDI Tools / NDI Runtime installed)");
+    spoutName.setTooltip ("Spout sender name");
+    ndiName.setTooltip ("NDI source name (receivers show it as COMPUTER (name))");
+    for (auto* t : { &spoutName, &ndiName })
+    {
+        t->setFont (juce::FontOptions (13.0f));
+        t->onReturnKey = [this] { apply(); };
+        t->onFocusLost = [this] { apply(); };
+        addAndMakeVisible (t);
+    }
+    spoutOn.onClick = [this] { apply(); };
+    ndiOn.onClick = [this] { apply(); };
+    addAndMakeVisible (spoutOn);
+    addAndMakeVisible (ndiOn);
+
+    fpsLabel.setText ("Frame rate", juce::dontSendNotification);
+    addAndMakeVisible (fpsLabel);
+    for (int f : { 24, 25, 30, 50, 60 }) fps.addItem (juce::String (f) + " fps", f);
+    fps.setSelectedId (s.fps == 24 || s.fps == 25 || s.fps == 30 || s.fps == 50 ? s.fps : 60, juce::dontSendNotification);
+    fps.onChange = [this] { apply(); };
+    addAndMakeVisible (fps);
+
+    for (auto* l : { &spoutStatus, &ndiStatus, &renderStatus, &info })
+    {
+        l->setFont (juce::FontOptions (11.5f));
+        l->setColour (juce::Label::textColourId, theme::dim);
+        l->setJustificationType (juce::Justification::topLeft);
+        addAndMakeVisible (l);
+    }
+    info.setText (juce::String ("Sends the final mix at the canvas size chosen in the top bar. It keeps running when the plugin "
+                                "window and the output window are closed, and is saved with the project.\n"
+                                "Live inputs: use the Live button on Deck A / B.\n")
+                  + juce::String::fromUTF8 ("NDI\xc2\xae is a registered trademark of Vizrt NDI AB."), juce::dontSendNotification);
+    setSize (420, 262);
+    timerCallback();
+    startTimerHz (4);
+}
+
+void VideoIoPanel::apply()
+{
+    Broadcaster::Settings s;
+    s.spout = spoutOn.getToggleState();
+    s.ndi = ndiOn.getToggleState();
+    s.spoutName = spoutName.getText().trim();
+    s.ndiName = ndiName.getText().trim();
+    s.fps = fps.getSelectedId() > 0 ? fps.getSelectedId() : 60;
+    proc.getBroadcaster().setSettings (s);
+    const auto applied = proc.getBroadcaster().getSettings();
+    spoutName.setText (applied.spoutName, juce::dontSendNotification);
+    ndiName.setText (applied.ndiName, juce::dontSendNotification);
+    timerCallback();
+}
+
+void VideoIoPanel::timerCallback()
+{
+    const auto st = proc.getBroadcaster().getStatus();
+    const auto s = proc.getBroadcaster().getSettings();
+    spoutStatus.setText (s.spout ? (st.spout.isNotEmpty() ? st.spout : juce::String ("Starting...")) : juce::String ("Off"), juce::dontSendNotification);
+    ndiStatus.setText (s.ndi ? (st.ndi.isNotEmpty() ? st.ndi : juce::String ("Starting...")) : juce::String ("Off"), juce::dontSendNotification);
+    juce::String r;
+    if (st.render.isNotEmpty() && st.render != "Rendering") r = st.render;
+    else if (st.running) r = "Rendering " + juce::String (st.width) + "x" + juce::String (st.height) + " at " + juce::String (st.fps, 1) + " fps";
+    renderStatus.setText (r, juce::dontSendNotification);
+    renderStatus.setColour (juce::Label::textColourId, r.startsWith ("Spout/NDI output can't") ? theme::accent : theme::dim);
+}
+
+void VideoIoPanel::resized()
+{
+    auto r = getLocalBounds().reduced (10);
+    title.setBounds (r.removeFromTop (22));
+    r.removeFromTop (4);
+    auto row = [&r] (juce::ToggleButton& t, juce::TextEditor& e, juce::Label& st)
+    {
+        auto line = r.removeFromTop (26);
+        t.setBounds (line.removeFromLeft (120));
+        e.setBounds (line.reduced (0, 1));
+        st.setBounds (r.removeFromTop (18).withTrimmedLeft (4));
+        r.removeFromTop (4);
+    };
+    row (spoutOn, spoutName, spoutStatus);
+    row (ndiOn, ndiName, ndiStatus);
+    auto line = r.removeFromTop (26);
+    fpsLabel.setBounds (line.removeFromLeft (120));
+    fps.setBounds (line.removeFromLeft (110).reduced (0, 1));
+    renderStatus.setBounds (r.removeFromTop (20).withTrimmedLeft (4));
+    r.removeFromTop (4);
+    info.setBounds (r);
+}
+
+void VideoIoPanel::paint (juce::Graphics& g) { g.fillAll (theme::panel); }
 
 //==============================================================================
 DeckPanel::DeckPanel (MoshDeckProcessor& p, int d) : proc (p), deck (d)
@@ -187,7 +306,9 @@ DeckPanel::DeckPanel (MoshDeckProcessor& p, int d) : proc (p), deck (d)
     next.onClick = [this] { proc.nextDeckClip (deck, 1); refresh(); };
     clear.onClick = [this] { proc.scene.setDeck (deck, {}); proc.decks[deck].load ({}); refresh(); };
     playlist.onChange = [this] { if (playlist.getSelectedId() > 0) proc.selectDeckClip (deck, playlist.getSelectedId() - 1); };
-    for (auto* b : { &loadBtn, &addBtn, &prev, &next, &clear }) addAndMakeVisible (b);
+    liveBtn.setTooltip ("Add a live Spout or NDI input to this deck (OBS, ZGameEditor via Spout, cameras, other PCs...)");
+    liveBtn.onClick = [this] { showLiveMenu(); };
+    for (auto* b : { &loadBtn, &addBtn, &prev, &next, &clear, &liveBtn }) addAndMakeVisible (b);
     addAndMakeVisible (playlist);
 
     const juce::String pre = d == 0 ? "DA" : "DB";
@@ -202,9 +323,42 @@ void DeckPanel::refresh()
     const auto st = proc.scene.getDeck (deck);
     playlist.clear (juce::dontSendNotification);
     for (int i = 0; i < st.files.size(); ++i)
-        playlist.addItem (juce::String (i + 1) + ". " + juce::File (st.files[i]).getFileName(), i + 1);
+        playlist.addItem (juce::String (i + 1) + ". " + live::displayName (st.files[i]), i + 1);
     if (! st.files.isEmpty()) playlist.setSelectedId (st.current + 1, juce::dontSendNotification);
     playlist.setTextWhenNothingSelected ("Drop media files here");
+}
+
+void DeckPanel::showLiveMenu()
+{
+    if (ndiLease == nullptr) ndiLease = std::make_unique<ndi::FinderLease>();
+    std::vector<live::SourceInfo> spoutSrc, ndiSrc;
+    juce::String notes;
+    live::listSources (spoutSrc, ndiSrc, notes);
+
+    juce::PopupMenu m;
+    std::vector<juce::String> paths;
+    m.addSectionHeader ("Spout senders (this PC)");
+    if (spoutSrc.empty()) m.addItem (-1, spout::isAvailable() ? "(no Spout senders running)" : "Spout is only available on Windows", false, false);
+    for (auto& src : spoutSrc) { paths.push_back (src.path); m.addItem ((int) paths.size(), src.label); }
+    m.addSectionHeader ("NDI sources (network)");
+    if (ndiSrc.empty()) m.addItem (-2, notes.contains ("NDI") ? notes.fromFirstOccurrenceOf ("NDI", true, false).upToFirstOccurrenceOf ("\n", false, false)
+                                                         : juce::String ("Searching... open this menu again in a moment"), false, false);
+    for (auto& src : ndiSrc) { paths.push_back (src.path); m.addItem ((int) paths.size(), src.label); }
+
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&liveBtn), [this, paths] (int result)
+    {
+        if (result <= 0 || result > (int) paths.size()) return;
+        const auto path = paths[(size_t) (result - 1)];
+        auto st = proc.scene.getDeck (deck);
+        int index = st.files.indexOf (path);
+        if (index < 0)
+        {
+            proc.loadDeckFiles (deck, juce::StringArray { path }, true);
+            index = proc.scene.getDeck (deck).files.size() - 1;
+        }
+        proc.selectDeckClip (deck, index);
+        refresh();
+    });
 }
 
 void DeckPanel::filesDropped (const juce::StringArray& files, int, int)
@@ -235,7 +389,10 @@ void DeckPanel::resized()
     addBtn.setBounds (top.removeFromRight (46).reduced (1));
     loadBtn.setBounds (top.removeFromRight (56).reduced (1));
     r.removeFromTop (3);
-    playlist.setBounds (r.removeFromTop (24));
+    auto pl = r.removeFromTop (24);
+    liveBtn.setBounds (pl.removeFromRight (44).reduced (1, 0));
+    pl.removeFromRight (3);
+    playlist.setBounds (pl);
     status.setBounds (r.removeFromTop (18));
     params->setBounds (r.removeFromTop (params->getIdealHeight()));
 }

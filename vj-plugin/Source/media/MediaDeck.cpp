@@ -2,6 +2,7 @@
 #include <juce_graphics/juce_graphics.h>
 
 #include "FFmpegApi.h"
+#include "io/LiveSources.h"
 
 
 
@@ -42,6 +43,8 @@ static juce::String avError (int code)
 
 struct MediaDeck::Impl
 {
+    std::unique_ptr<live::Receiver> liveRx;
+    std::vector<uint8_t> livePx;
 #if MOSHDECK_HAVE_FFMPEG
     AVFormatContext* fmt = nullptr;
     AVCodecContext* codec = nullptr;
@@ -111,7 +114,13 @@ juce::String MediaDeck::getStatus() const
 void MediaDeck::tick (double dt, double speed, double beats, double loopBeats, double cue)
 {
     const double dur = duration.load();
-    if (dur <= 0.0) return;
+    if (dur <= 0.0 || live) return;
+    std::lock_guard<std::mutex> tl (tickMutex);
+    const double now = juce::Time::getMillisecondCounterHiRes() * 0.001;
+    // Several engines (preview, output window, Spout/NDI broadcaster) tick the same deck;
+    // advance by the wall-clock time since the last tick from any of them.
+    const double step = lastTickTime < 0.0 ? dt : juce::jlimit (0.0, 0.25, now - lastTickTime);
+    lastTickTime = now;
     double p;
     if (loopBeats > 0.0)
     {
@@ -119,7 +128,7 @@ void MediaDeck::tick (double dt, double speed, double beats, double loopBeats, d
         p = cue * dur + (speed >= 0 ? phase : 1.0 - phase) * dur;
     }
     else
-        p = position.load() + dt * speed;
+        p = position.load() + step * speed;
     p = std::fmod (p, dur);
     if (p < 0) p += dur;
     position = p;
@@ -134,14 +143,16 @@ bool MediaDeck::fetch (VideoFrame& dest, uint64_t lastSerial)
     dest.width = frame.width;
     dest.height = frame.height;
     dest.serial = frame.serial;
+    dest.bgra = frame.bgra;
     dest.rgba = frame.rgba;
     return true;
 }
 
-void MediaDeck::publish (const uint8_t* src, int w, int h, int stride)
+void MediaDeck::publish (const uint8_t* src, int w, int h, int stride, bool bgra)
 {
     std::lock_guard<std::mutex> l (frameMutex);
     frame.width = w; frame.height = h;
+    frame.bgra = bgra;
     frame.rgba.resize ((size_t) (w * h * 4));
     for (int y = 0; y < h; ++y) // flip to bottom-up
         std::memcpy (&frame.rgba[(size_t) ((h - 1 - y) * w * 4)], src + (size_t) y * (size_t) stride, (size_t) w * 4);
@@ -157,7 +168,7 @@ void MediaDeck::run()
         bool open = false;
         {
             std::unique_lock<std::mutex> l (mutex);
-            cv.wait_for (l, std::chrono::milliseconds (video ? 4 : 50), [this] { return quit.load() || hasPending; });
+            cv.wait_for (l, std::chrono::milliseconds (live ? 2 : (video ? 4 : 50)), [this] { return quit.load() || hasPending; });
             if (quit) break;
             if (hasPending) { toOpen = pendingPath; hasPending = false; open = true; }
         }
@@ -166,12 +177,31 @@ void MediaDeck::run()
             const bool ok = openFile (toOpen);
             std::lock_guard<std::mutex> l (mutex);
             currentPath = toOpen;
-            if (! ok && status.isEmpty()) status = "Could not open file";
+            if (! ok && status.isEmpty() && toOpen.isNotEmpty()) status = "Could not open file";
             continue;
         }
-        if (video)
+        if (live)
+            pollLive();
+        else if (video)
             decodeUntil (target.load());
     }
+}
+
+void MediaDeck::pollLive()
+{
+    auto& m = *impl;
+    if (m.liveRx == nullptr) return;
+    int w = 0, h = 0;
+    bool bgra = false;
+    juce::String st;
+    const int r = m.liveRx->receive (m.livePx, w, h, bgra, st);
+    if (st.isNotEmpty())
+    {
+        std::lock_guard<std::mutex> l (mutex);
+        if (status != st) status = st;
+    }
+    if (r == 1 && w > 0 && h > 0)
+        publish (m.livePx.data(), w, h, w * 4, bgra);
 }
 
 void MediaDeck::closeFile()
@@ -185,6 +215,8 @@ void MediaDeck::closeFile()
     if (m.fmt) ffapi().avformat_close_input (&m.fmt);
     m = Impl();
 #endif
+    impl->liveRx.reset();
+    live = false;
     video = false;
     duration = 0.0;
 }
@@ -196,6 +228,20 @@ bool MediaDeck::openFile (const juce::String& path)
         std::lock_guard<std::mutex> l (mutex);
         status.clear();
     }
+    if (live::isLivePath (path))
+    {
+        juce::String st;
+        auto rx = live::Receiver::create (path, st);
+        std::lock_guard<std::mutex> l (mutex);
+        status = st;
+        if (rx == nullptr) return false;
+        impl->liveRx = std::move (rx);
+        duration = 1.0;
+        position = 0.0;
+        live = true;
+        return true;
+    }
+    if (path.isEmpty() || ! juce::File::isAbsolutePath (path)) { std::lock_guard<std::mutex> l (mutex); status = path.isEmpty() ? "" : "File not found"; return false; }
     const juce::File f (path);
     if (! f.existsAsFile()) { std::lock_guard<std::mutex> l (mutex); status = "File not found"; return false; }
     const auto ext = f.getFileExtension().toLowerCase();

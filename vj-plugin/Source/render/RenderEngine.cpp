@@ -250,14 +250,14 @@ void RenderEngine::updateDecks (double dt, const SceneData& sd, const std::vecto
         {
             const double slot = std::floor (fs.beats / (4.0 * nextBars));
             if (lastDeckBar[d] >= 0 && slot != lastDeckBar[d])
-                host.onDeckAdvance (d);
+                host.onDeckAdvance (d, slot);
             lastDeckBar[d] = slot;
         }
 
         if (deck.fetch (deckFrames[d], deckSerial[d]))
         {
             deckSerial[d] = deckFrames[d].serial;
-            deckTex[d].uploadRGBA (deckFrames[d].rgba.data(), deckFrames[d].width, deckFrames[d].height);
+            deckTex[d].uploadRGBA (deckFrames[d].rgba.data(), deckFrames[d].width, deckFrames[d].height, deckFrames[d].bgra);
             deckHasFrame[d] = true;
         }
         if (deck.getPath().isEmpty()) deckHasFrame[d] = false;
@@ -504,7 +504,7 @@ void RenderEngine::renderSource (LayerRuntime& rt, const Layer& l, const std::ve
             {
                 const double slot = std::floor (fs.beats / autoBeats);
                 if (rt.lastAutoBeat >= 0 && slot != rt.lastAutoBeat)
-                    host.onMilkAdvance (l.uid);
+                    host.onMilkAdvance (l.uid, slot);
                 rt.lastAutoBeat = slot;
             }
             juce::String status = "Milk: " + rt.milk->currentSpec().fromFirstOccurrenceOf ("builtin:", false, false);
@@ -580,7 +580,7 @@ GLuint RenderEngine::runChain (const juce::String& owner, std::map<juce::String,
 }
 
 //==============================================================================
-void RenderEngine::renderFrame (int vw, int vh, float scale)
+void RenderEngine::renderFrame (int vw, int vh, float scale, bool present)
 {
     juce::ignoreUnused (scale);
     if (! ready) return;
@@ -706,6 +706,11 @@ void RenderEngine::renderFrame (int vw, int vh, float scale)
 
     // ---- present (letterboxed)
     glBindFramebuffer (GL_FRAMEBUFFER, (GLuint) defaultFbo);
+    if (! present)
+    {
+        glBindVertexArray (0);
+        return;
+    }
     glViewport (0, 0, vw, vh);
     glClearColor (0, 0, 0, 1);
     glClear (GL_COLOR_BUFFER_BIT);

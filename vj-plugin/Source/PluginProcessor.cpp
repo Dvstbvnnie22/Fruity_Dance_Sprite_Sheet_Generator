@@ -35,12 +35,14 @@ MoshDeckProcessor::MoshDeckProcessor()
         r.dest = dest;
         scene.addRoute (r, 0.5f);
     };
+    broadcaster = std::make_unique<Broadcaster> (*this);
     startTimerHz (30);
 }
 
 MoshDeckProcessor::~MoshDeckProcessor()
 {
     stopTimer();
+    broadcaster.reset();
     outputWindow.reset();
 }
 
@@ -124,13 +126,23 @@ juce::String MoshDeckProcessor::getLayerStatus (const juce::String& uid) const
     return it != layerStatus.end() ? it->second : juce::String();
 }
 
-void MoshDeckProcessor::onDeckAdvance (int deck)
+void MoshDeckProcessor::onDeckAdvance (int deck, double slot)
 {
+    // every running engine reports the same slot; act on the first report only
+    auto& last = lastDeckSlot[juce::jlimit (0, 1, deck)];
+    double prev = last.load();
+    if (prev == slot || ! last.compare_exchange_strong (prev, slot)) return;
     juce::MessageManager::callAsync ([this, deck] { nextDeckClip (deck, 1); });
 }
 
-void MoshDeckProcessor::onMilkAdvance (const juce::String& uid)
+void MoshDeckProcessor::onMilkAdvance (const juce::String& uid, double slot)
 {
+    {
+        const juce::ScopedLock sl (milkSlotLock);
+        auto it = lastMilkSlot.find (uid);
+        if (it != lastMilkSlot.end() && it->second == slot) return;
+        lastMilkSlot[uid] = slot;
+    }
     juce::MessageManager::callAsync ([this, uid] { stepMilkPreset (uid, 1); });
 }
 
@@ -285,6 +297,16 @@ void MoshDeckProcessor::getStateInformation (juce::MemoryBlock& dest)
     root.setProperty ("smooth", analyzer.smoothing.load(), nullptr);
     root.setProperty ("sens", analyzer.onsetSensitivity.load(), nullptr);
     root.setProperty ("milkFolder", defaultMilkFolder, nullptr);
+    {
+        const auto io = broadcaster->getSettings();
+        juce::ValueTree out ("VideoOutputs");
+        out.setProperty ("spout", io.spout, nullptr);
+        out.setProperty ("spoutName", io.spoutName, nullptr);
+        out.setProperty ("ndi", io.ndi, nullptr);
+        out.setProperty ("ndiName", io.ndiName, nullptr);
+        out.setProperty ("fps", io.fps, nullptr);
+        root.appendChild (out, nullptr);
+    }
     if (auto xml = root.createXml())
         copyXmlToBinary (*xml, dest);
 }
@@ -310,6 +332,16 @@ void MoshDeckProcessor::setStateInformation (const void* data, int size)
     analyzer.smoothing = (float) root.getProperty ("smooth", 0.65f);
     analyzer.onsetSensitivity = (float) root.getProperty ("sens", 1.0f);
     defaultMilkFolder = root.getProperty ("milkFolder", "").toString();
+    {
+        const auto out = root.getChildWithName ("VideoOutputs");
+        Broadcaster::Settings io;
+        io.spout = (bool) out.getProperty ("spout", false);
+        io.spoutName = out.getProperty ("spoutName", broadcaster->getDefaultName()).toString();
+        io.ndi = (bool) out.getProperty ("ndi", false);
+        io.ndiName = out.getProperty ("ndiName", broadcaster->getDefaultName()).toString();
+        io.fps = (int) out.getProperty ("fps", 60);
+        broadcaster->setSettings (io);
+    }
 }
 
 juce::AudioProcessorEditor* MoshDeckProcessor::createEditor() { return new MoshDeckEditor (*this); }

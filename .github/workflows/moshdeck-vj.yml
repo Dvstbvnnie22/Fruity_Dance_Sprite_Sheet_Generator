@@ -17,7 +17,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y pkg-config libfontconfig1-dev libgl1-mesa-dev libasound2-dev libx11-dev libxrandr-dev libxinerama-dev \
             libxcursor-dev libxcomposite-dev libxext-dev libfreetype-dev libavcodec-dev libavformat-dev \
-            libswscale-dev libavutil-dev glslang-tools xvfb
+            libswscale-dev libavutil-dev glslang-tools xvfb libgl1-mesa-dri
       - name: Configure
         run: cmake -S vj-plugin -B build -DCMAKE_BUILD_TYPE=Release
       - name: Build
@@ -30,6 +30,8 @@ jobs:
         run: |
           xvfb-run -a -s "-screen 0 1600x1000x24" ./build/MoshDeckRenderTest_artefacts/Release/MoshDeckRenderTest "$PWD/render" "$PWD/logotype.png"
           xvfb-run -a -s "-screen 0 1600x1000x24" ./build/MoshDeckHostTest_artefacts/Release/MoshDeckHostTest "$PWD/build/MoshDeckVJ_artefacts/Release/VST3/MoshDeck VJ.vst3"
+      - name: Headless broadcaster test (render + readback; Spout/NDI are skipped on Linux CI)
+        run: xvfb-run -a -s "-screen 0 1280x720x24" ./build/MoshDeckIoTest_artefacts/Release/MoshDeckIoTest --timeout 30
       - uses: actions/upload-artifact@v4
         with:
           name: render-contact-sheets
@@ -108,6 +110,11 @@ jobs:
         with:
           name: MoshDeckVJ-Windows-Standalone
           path: build/MoshDeckVJ_artefacts/Release/Standalone
+      - uses: actions/upload-artifact@v4
+        with:
+          # run on a PC with a GPU: MoshDeckIoTest.exe (sends a test pattern over Spout + NDI and receives it back)
+          name: MoshDeckVJ-Windows-IoTest
+          path: build/MoshDeckIoTest_artefacts/Release/MoshDeckIoTest.exe
 
   macos:
     runs-on: macos-14
